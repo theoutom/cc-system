@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panduan Deployment — CC System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --purple: #7c3aed;
+    --purple-light: #ede9fe;
+    --purple-mid: #a78bfa;
+    --green: #059669;
+    --green-light: #d1fae5;
+    --blue: #2563eb;
+    --blue-light: #dbeafe;
+    --amber: #d97706;
+    --amber-light: #fef3c7;
+    --red: #dc2626;
+    --red-light: #fee2e2;
+    --slate-900: #0f172a;
+    --slate-700: #334155;
+    --slate-500: #64748b;
+    --slate-300: #cbd5e1;
+    --slate-100: #f1f5f9;
+    --slate-50: #f8fafc;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: #f8fafc;
+    color: var(--slate-700);
+    line-height: 1.6;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4c1d95 100%);
+    border-radius: 20px;
+    padding: 48px;
+    color: white;
+    margin-bottom: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(167,139,250,0.15) 0%, transparent 70%);
+    top: -100px; right: -100px;
+    border-radius: 50%;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    backdrop-filter: blur(4px);
+  }
+  .hero h1 {
+    font-size: 36px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+  .hero p {
+    font-size: 16px;
+    opacity: 0.7;
+    margin-bottom: 28px;
+  }
+  .hero-meta {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .hero-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.1);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  /* ── Section header ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .step-num {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    background: var(--purple);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .section-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--slate-900);
+  }
+  .section-header p {
+    font-size: 13px;
+    color: var(--slate-500);
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 32px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  /* ── Steps inside card ── */
+  .steps {
+    counter-reset: step;
+  }
+  .step-item {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--slate-100);
+  }
+  .step-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+  .step-circle {
+    counter-increment: step;
+    width: 28px; height: 28px;
+    background: var(--purple);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .step-body h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--slate-900);
+    margin-bottom: 4px;
+  }
+  .step-body p {
+    font-size: 13px;
+    color: var(--slate-500);
+    margin-bottom: 8px;
+  }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: #1e1b4b;
+    border-radius: 10px;
+    padding: 16px;
+    margin: 10px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+  .code-block .line { display: block; }
+  .code-block .comment { color: #64748b; }
+  .code-block .key { color: #a78bfa; }
+  .code-block .val { color: #34d399; }
+  .code-block .cmd { color: #f0f9ff; }
+  .code-block .url { color: #60a5fa; text-decoration: underline; }
+  .code-block .highlight { color: #fbbf24; font-weight: 600; }
+
+  /* ── Inline code ── */
+  code {
+    background: var(--purple-light);
+    color: var(--purple);
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* ── Alerts ── */
+  .alert {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+  .alert-icon { font-size: 18px; flex-shrink: 0; }
+  .alert-content { flex: 1; }
+  .alert-content strong { display: block; font-weight: 700; margin-bottom: 2px; }
+  .alert.info  { background: var(--blue-light); color: #1e3a8a; border: 1px solid #bfdbfe; }
+  .alert.warn  { background: var(--amber-light); color: #78350f; border: 1px solid #fde68a; }
+  .alert.success { background: var(--green-light); color: #064e3b; border: 1px solid #a7f3d0; }
+  .alert.danger { background: var(--red-light); color: #7f1d1d; border: 1px solid #fecaca; }
+
+  /* ── Screenshot boxes ── */
+  .screenshot-box {
+    border: 2px solid var(--slate-300);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 12px 0;
+    background: var(--slate-50);
+  }
+  .screenshot-box .screen-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .dot-red   { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
+  .dot-amber { width: 10px; height: 10px; border-radius: 50%; background: #f59e0b; }
+  .dot-green { width: 10px; height: 10px; border-radius: 50%; background: #10b981; }
+  .screen-title { font-size: 11px; color: var(--slate-500); font-weight: 500; flex: 1; text-align: center; }
+
+  .screen-content {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--slate-200);
+    padding: 16px;
+    font-size: 12.5px;
+    color: var(--slate-700);
+  }
+
+  /* ── Navigation paths ── */
+  .nav-path {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--slate-100);
+    border: 1px solid var(--slate-300);
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: var(--slate-700);
+    font-weight: 500;
+    margin: 4px 0;
+  }
+  .nav-path .arrow { color: var(--slate-400); margin: 0 2px; }
+
+  /* ── Feature list ── */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .feature-item {
+    background: var(--slate-50);
+    border: 1px solid var(--slate-200);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .feature-icon { font-size: 20px; flex-shrink: 0; }
+  .feature-item h5 { font-size: 13px; font-weight: 700; color: var(--slate-900); margin-bottom: 2px; }
+  .feature-item p  { font-size: 12px; color: var(--slate-500); }
+
+  /* ── Divider ── */
+  .divider { height: 1px; background: var(--slate-100); margin: 32px 0; }
+
+  /* ── Table ── */
+  .info-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .info-table th {
+    background: var(--slate-50);
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 600;
+    color: var(--slate-700);
+    border-bottom: 2px solid var(--slate-200);
+  }
+  .info-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--slate-100);
+    vertical-align: top;
+  }
+  .info-table tr:last-child td { border-bottom: none; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; padding: 0; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--slate-100);
+    font-size: 13.5px;
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .check-icon {
+    width: 20px; height: 20px;
+    background: var(--green-light);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    padding: 32px;
+    background: var(--slate-900);
+    border-radius: 16px;
+    color: white;
+    margin-top: 40px;
+  }
+  .footer h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .footer p  { font-size: 13px; opacity: 0.6; }
+
+  @media print {
+    body { padding: 20px; max-width: 100%; }
+    .hero { page-break-after: avoid; }
+    .card { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">📖 Panduan Lengkap Deployment</div>
+  <h1>CC System<br>Creative Corner</h1>
+  <p>Panduan setup dari nol sampai live di internet — step by step, tanpa coding</p>
+  <div class="hero-meta">
+    <div class="hero-chip">🚀 Next.js 14</div>
+    <div class="hero-chip">🗄️ Supabase (Gratis)</div>
+    <div class="hero-chip">▲ Vercel (Gratis)</div>
+    <div class="hero-chip">⏱ ~30 menit</div>
+  </div>
+</div>
+
+<!-- FITUR OVERVIEW -->
+<div class="card">
+  <div class="section-header">
+    <div class="step-num">✦</div>
+    <div>
+      <h2>Apa aja yang ada di aplikasi ini?</h2>
+      <p>Ringkasan fitur lengkap CC System</p>
+    </div>
+  </div>
+  <div class="feature-grid">
+    <div class="feature-item">
+      <div class="feature-icon">📦</div>
+      <div>
+        <h5>Peminjaman</h5>
+        <p>Form 4 langkah untuk Sekolah, Organisasi & Eksternal. Upload foto kartu & lampiran bukti. Durasi & estimasi kembali otomatis.</p>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">🔄</div>
+      <div>
+        <h5>Pengembalian</h5>
+        <p>Catat pengembalian alat dari daftar yang sedang dipinjam. Riwayat pengembalian tersimpan lengkap.</p>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">👁️</div>
+      <div>
+        <h5>Pemantauan</h5>
+        <p>Monitor semua peminjaman aktif. Filter per kategori, cari peminjam, lihat status real-time.</p>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">📅</div>
+      <div>
+        <h5>Jadwal Konten</h5>
+        <p>4 tab: Feed & Ucapan, Aftermovie, Dokumentasi, Thumbnail. Kode warna deadline. Assign ke anggota.</p>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">📷</div>
+      <div>
+        <h5>Inventaris Alat</h5>
+        <p>Daftar lengkap semua alat studio. Status tersedia/dipinjam. Kategori & kondisi alat.</p>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">🔐</div>
+      <div>
+        <h5>Sistem Login</h5>
+        <p>2 level: Admin (approve, hapus, manage akun) dan Anggota (lihat & buat peminjaman/jadwal).</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PRASYARAT -->
+<div class="card">
+  <div class="section-header">
+    <div class="step-num">0</div>
+    <div>
+      <h2>Yang Kamu Butuhkan</h2>
+      <p>Persiapan sebelum mulai — semuanya gratis!</p>
+    </div>
+  </div>
+  <ul class="checklist">
+    <li><div class="check-icon">✓</div><div><strong>Akun GitHub</strong> — gratis di github.com · untuk menyimpan kode</div></li>
+    <li><div class="check-icon">✓</div><div><strong>Akun Supabase</strong> — gratis di supabase.com · untuk database & storage foto</div></li>
+    <li><div class="check-icon">✓</div><div><strong>Akun Vercel</strong> — gratis di vercel.com · untuk hosting website</div></li>
+    <li><div class="check-icon">✓</div><div><strong>Node.js 18+</strong> — hanya perlu jika mau test di laptop dulu (opsional)</div></li>
+    <li><div class="check-icon">✓</div><div><strong>File cc-system.zip</strong> — sudah kamu punya (download dari Claude)</div></li>
+  </ul>
+  <div class="alert info" style="margin-top: 16px;">
+    <div class="alert-icon">💡</div>
+    <div class="alert-content">
+      <strong>Estimasi waktu total: 20–30 menit</strong>
+      Ikuti urutan step 1 → 2 → 3 → 4 → 5. Jangan skip karena setiap step saling bergantung.
+    </div>
+  </div>
+</div>
+
+<!-- STEP 1: SUPABASE -->
+<div class="card">
+  <div class="section-header">
+    <div class="step-num">1</div>
+    <div>
+      <h2>Setup Supabase (Database)</h2>
+      <p>Buat project database gratis untuk menyimpan semua data CC</p>
+    </div>
+  </div>
+
+  <div class="steps">
+
+    <div class="step-item">
+      <div class="step-circle">1</div>
+      <div class="step-body">
+        <h4>Daftar & login ke Supabase</h4>
+        <p>Buka browser, pergi ke:</p>
+        <div class="code-block">
+          <span class="line"><span class="url">https://supabase.com</span></span>
+          <span class="line comment">→ Klik "Start your project" → Sign up dengan GitHub atau email</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-item">
+      <div class="step-circle">2</div>
+      <div class="step-body">
+        <h4>Buat project baru</h4>
+        <p>Setelah login, kamu akan masuk ke dashboard. Klik tombol <code>New project</code></p>
+        <div class="screenshot-box">
+          <div class="screen-header"><div class="dot-red"></div><div class="dot-amber"></div><div class="dot-green"></div><div class="screen-title">supabase.com/dashboard</div></div>
+          <div class="screen-content">
+            <div style="margin-bottom: 8px; font-weight: 600; color: #0f172a;">Isi form seperti ini:</div>
+            <table style="width:100%; font-size: 12px; border-collapse: collapse;">
+              <tr><td style="padding: 4px 0; color: #64748b; width: 140px;">Organization</td><td style="font-weight: 600;">Buat baru atau pilih yang ada</td></tr>
+              <tr><td style="padding: 4px 0; color: #64748b;">Project name</td><td style="font-weight: 600; color: #7c3aed;">cc-system</td></tr>
+              <tr><td style="padding: 4px 0; color: #64748b;">Database Password</td><td style="font-weight: 600;">Buat password yang kuat, <span style="color: #dc2626;">SIMPAN di catatan!</span></td></tr>
+              <tr><td style="padding: 4px 0; color: #64748b;">Region</td><td style="font-weight: 600; color: #059669;">Southeast Asia (Singapore)</td></tr>
+              <tr><td style="padding: 4px 0; color: #64748b;">Plan</td><td style="font-weight: 600;">Free tier ✓</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="alert warn">
+          <div class="alert-icon">⚠️</div>
+          <div class="alert-content">
+            <strong>Tunggu 1–2 menit!</strong>
+            Setelah klik "Create new project", Supabase butuh waktu untuk menyiapkan database. Jangan tutup halaman sampai ada tulisan "Project is ready".
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-item">
+      <div class="step-circle">3</div>
+      <div class="step-body">
+        <h4>Jalankan script database</h4>
+        <p>Ini adalah langkah yang paling penting. Klik menu <strong>SQL Editor</strong> di sidebar kiri:</p>
+        <div class="nav-path">
+          <span>Dashboard</span><span class="arrow">→</span>
+          <span>SQL Editor</span><span class="arrow">→</span>
+          <span>+ New query</span>
+        </div>
+        <div class="alert info" style="margin-top: 10px;">
+          <div class="alert-icon">📋</div>
+          <div class="alert-content">
+            <strong>Copy file database.sql</strong>
+            Buka file <code>database.sql</code> dari ZIP yang kamu download. Pilih semua (Ctrl+A), copy (Ctrl+C), lalu paste ke SQL Editor Supabase. Klik tombol <strong>RUN ▶</strong> di pojok kanan atas.
+          </div>
+        </div>
+        <div class="alert success">
+          <div class="alert-icon">✅</div>
+          <div class="alert-content">
+            <strong>Berhasil jika:</strong>
+            Muncul pesan "Success. No rows returned" atau pesan sukses lainnya. Tidak ada teks merah/error.
+          </div>
+        </div>
+        <div class="alert danger">
+          <div class="alert-icon">❌</div>
+          <div class="alert-content">
+            <strong>Jika muncul error merah:</strong>
+            Coba jalankan ulang (klik Run lagi). Jika masih error, coba hapus semua isi SQL Editor dan paste ulang dari awal file.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-item">
+      <div class="step-circle">4</div>
+      <div class="step-body">
+        <h4>Ambil API Keys (URL & Anon Key)</h4>
+        <p>Ini kunci untuk menghubungkan aplikasi ke database. Klik:</p>
+        <div class="nav-path">
+          <span>Settings</span><span class="arrow">→</span>
+          <span>API</span>
+        </div>
+        <div class="screenshot-box">
+          <div class="screen-header"><div class="dot-red"></div><div class="dot-amber"></div><div class="dot-green"></div><div class="screen-title">Settings → API</div></div>
+          <div class="screen-content">
+            <div style="font-size: 11px; color: #64748b; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Project URL</div>
+            <div style="background: #f1f5f9; padding: 8px 12px; border-radius: 6px; font-family: monospace; font-size: 12px; margin-bottom: 12px;">https://<span style="color: #7c3aed; font-weight: 700;">xxxxxxxxxxxxxxxx</span>.supabase.co</div>
+            <div style="font-size: 11px; color: #64748b; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Project API Keys → anon public</div>
+            <div style="background: #f1f5f9; padding: 8px 12px; border-radius: 6px; font-family: monospace; font-size: 11px;">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.<span style="color: #7c3aed; font-weight: 700;">...</span></div>
+            <div style="margin-top: 8px; font-size: 11.5px; color: #059669; font-weight: 600;">⬆️ Copy kedua nilai ini, simpan sementara di Notepad</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-item">
+      <div class="step-circle">5</div>
+      <div class="step-body">
+        <h4>Buat akun admin pertama</h4>
+        <p>Masuk ke menu Authentication untuk buat akun login:</p>
+        <div class="nav-path">
+          <span>Authentication</span><span class="arrow">→</span>
+          <span>Users</span><span class="arrow">→</span>
+          <span>Add User</span><span class="arrow">→</span>
+          <span>Create new user</span>
+        </div>
+        <div class="screenshot-box">
+          <div class="screen-header"><div class="dot-red"></div><div class="dot-amber"></div><div class="dot-green"></div><div class="screen-title">Authentication → Users → Add User</div></div>
+          <div class="screen-content">
+            <table style="width:100%; font-size: 12px; border-collapse: collapse;">
+              <tr><td style="padding: 5px 0; color: #64748b; width: 160px;">Email</td><td style="font-weight: 600;">email kamu (cth: admin@creative.cc)</td></tr>
+              <tr><td style="padding: 5px 0; color: #64748b;">Password</td><td style="font-weight: 600;">Password yang mudah kamu ingat</td></tr>
+              <tr><td style="padding: 5px 0; color: #64748b;">Auto Confirm User</td><td style="font-weight: 600; color: #059669;">✓ Aktifkan (centang)</td></tr>
+            </table>
+          </div>
+        </div>
+        <p style="margin-top: 10px; font-size: 13px;">Setelah user dibuat, pergi ke <strong>Table Editor → profiles</strong>, cari baris user tadi, lalu:</p>
+        <ul style="margin-left: 20px; font-size: 13px; color: #475569; margin-top: 6px;">
+          <li>Klik ikon pensil (edit) di baris tersebut</li>
+          <li>Ubah kolom <code>nama</code> → nama kamu</li>
+          <li>Ubah kolom <code>role</code> dari <code>anggota</code> → <code>admin</code></li>
+          <li>Klik Save</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- STEP 2: GITHUB -->
+<div class="card">
+  <div class="section-header">
+    <div class="step-num">2</div>
+    <div>
+      <h2>Upload Kode ke GitHub</h2>
+      <p>GitHub menyimpan kode aplikasi, Vercel akan membacanya dari sini</p>
+    </div>
+  </div>
+  <div class="steps">
+
+    <div class="step-item">
+      <div class="step-circle">1</div>
+      <div class="step-body">
+        <h4>Ekstrak file ZIP</h4>
+        <p>Extract file <code>cc-system.zip</code> yang kamu download. Kamu akan mendapat folder bernama <code>cc-system</code>.</p>
+      </div>
+    </div>
+
+    <div class="step-item">
+      <div class="step-circle">2</div>
+      <div class="step-body">
+        <h4>Buat repository baru di GitHub</h4>
+        <p>Buka <strong>github.com</strong> → Login → klik tombol <strong>+</strong> di pojok kanan atas → <strong>New repository</strong></p>
+        <div class="screenshot-box">
+          <div class="screen-header"><div class="dot-red"></div><div class="dot-amber"></div><div class="dot-green"></div><div class="screen-title">github.com/new</div></div>
+          <div class="screen-content">
+            <table style="width:100%; font-size: 12px; border-collapse: collapse;">
+              <tr><td style="padding: 5px 0; color: #64748b; width: 160px;">Repository name</td><td style="font-weight: 600; color: #7c3aed;">cc-system</td></tr>
+              <tr><td style="padding: 5px 0; color: #64748b;">Visibility</td><td style="font-weight: 600;">Private ✓ (supaya kode tidak bisa dibaca orang lain)</td></tr>
+              <tr><td style="padding: 5px 0; color: #64748b;">Initialize this repo</td><td style="font-weight: 600; color: #dc2626;">⬛ JANGAN dicentang</td></tr>
+            </table>
+          </div>
+        </div>
+        <p style="margin-top: 8px; font-size: 13px;">Klik <strong>Create repository</strong>. Kamu akan melihat halaman dengan instruksi upload.</p>
+      </div>
+    </div>
+
+    <div class="step-item">
+      <div class="step-circle">3</div>
+      <div class="step-body">
+        <h4>Upload folder cc-system ke GitHub</h4>
+        <p><strong>Cara termudah (tanpa install Git):</strong></p>
+        <div class="alert info">
+          <div class="alert-icon">💡</div>
+          <div class="alert-content">
+            Di halaman repository yang baru dibuat, kamu akan melihat link. Klik <strong>"uploading an existing file"</strong> atau drag & drop seluruh isi folder <code>cc-system</code> ke halaman tersebut.
+          </div>
+        </div>
+        <p style="font-size: 13px; margin-top: 8px;"><strong>Cara via terminal (lebih cepat jika punya Git):</strong></p>
+        <div class="code-block">
+          <span class="line comment"># Buka terminal, masuk ke folder cc-system</span>
+          <span class="line"><span class="cmd">cd cc-system</span></span>
+          <span class="line"></span>
+          <span class="line comment"># Inisialisasi git & upload</span>
+          <span class="line"><span class="cmd">git init</span></span>
+          <span class="line"><span class="cmd">git add .</span></span>
+          <span class="line"><span class="cmd">git commit -m "Initial CC System"</span></span>
+          <span class="line"><span class="cmd">git branch -M main</span></span>
+          <span class="line"><span class="cmd">git remote add origin https://github.com/<span class="highlight">USERNAME</span>/cc-system.git</span></span>
+          <span class="line"><span class="cmd">git push -u origin main</span></span>
+        </div>
+        <p style="font-size: 12px; color: #64748b; margin-top: 6px;">Ganti <code>USERNAME</code> dengan username GitHub kamu.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- STEP 3: VERCEL -->
+<div class="card">
+  <div class="section-header">
+    <div class="step-num">3</div>
+    <div>
+      <h2>Deploy ke Vercel</h2>
+      <p>Hosting gratis untuk Next.js — paling mudah digunakan</p>
+    </div>
+  </div>
+  <div class="steps">
+
+    <div class="step-item">
+      <div class="step-circle">1</div>
+      <div class="step-body">
+        <h4>Daftar & login ke Vercel</h4>
+        <div class="code-block">
+          <span class="line"><span class="url">https://vercel.com</span></span>
+          <span class="line comment">→ Klik "Sign Up" → pilih "Continue with GitHub"</span>
+          <span class="line comment">→ Izinkan Vercel mengakses GitHub kamu</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-item">
+      <div class="step-circle">2</div>
+      <div class="step-body">
+        <h4>Import repository dari GitHub</h4>
+        <p>Di dashboard Vercel, klik <strong>"Add New... → Project"</strong></p>
+        <div class="screenshot-box">
+          <div class="screen-header"><div class="dot-red"></div><div class="dot-amber"></div><div class="dot-green"></div><div class="screen-title">vercel.com/new</div></div>
+          <div class="screen-content">
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">Import Git Repository:</div>
+            <div style="display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 12px; border-radius: 8px;">
+              <span style="font-size: 16px;">⬛</span>
+              <div>
+                <div style="font-size: 12.5px; font-weight: 600;">USERNAME/cc-system</div>
+                <div style="font-size: 11px; color: #94a3b8;">Private</div>
+              </div>
+              <button style="margin-left: auto; background: #0f172a; color: white; padding: 5px 14px; border-radius: 6px; font-size: 11.5px; border: none; cursor: pointer; font-weight: 600;">Import</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-item">
+      <div class="step-circle">3</div>
+      <div class="step-body">
+        <h4>⚡ Tambahkan Environment Variables — WAJIB!</h4>
+        <p>Di halaman konfigurasi project (sebelum deploy), scroll ke bawah sampai bagian <strong>"Environment Variables"</strong>. Tambahkan 2 variabel berikut:</p>
+        <div class="code-block">
+          <span class="line comment"># Variabel 1</span>
+          <span class="line"><span class="key">NAME:</span>  <span class="val">NEXT_PUBLIC_SUPABASE_URL</span></span>
+          <span class="line"><span class="key">VALUE:</span> <span class="val">https://xxxxxxxxxxxxxxxx.supabase.co</span></span>
+          <span class="line comment">         ↑ URL yang kamu copy dari Supabase Settings → API</span>
+          <span class="line"></span>
+          <span class="line comment"># Variabel 2</span>
+          <span class="line"><span class="key">NAME:</span>  <span class="val">NEXT_PUBLIC_SUPABASE_ANON_KEY</span></span>
+          <span class="line"><span class="key">VALUE:</span> <span class="val">eyJhbGciOiJIUzI1NiIsInR5cCI6...</span></span>
+          <span class="line comment">         ↑ anon public key dari Supabase Settings → API</span>
+        </div>
+        <div class="alert danger">
+          <div class="alert-icon">🚫</div>
+          <div class="alert-content">
+            <strong>Jangan lupa ini!</strong>
+            Kalau tidak menambahkan env vars, aplikasi tidak bisa terkoneksi ke database dan akan error saat dibuka.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-item">
+      <div class="step-circle">4</div>
+      <div class="step-body">
+        <h4>Klik Deploy!</h4>
+        <p>Setelah menambahkan env vars, klik tombol <strong>"Deploy"</strong>. Tunggu 2–4 menit proses build selesai.</p>
+        <div class="alert success">
+          <div class="alert-icon">🎉</div>
+          <div class="alert-content">
+            <strong>Berhasil jika:</strong>
+            Ada konfeti dan tulisan "Congratulations!" muncul. Vercel akan memberikan URL seperti <code>cc-system-xxx.vercel.app</code>. Klik URL tersebut untuk membuka aplikasi!
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- STEP 4: SUPABASE AUTH SETTINGS -->
+<div class="card">
+  <div class="section-header">
+    <div class="step-num">4</div>
+    <div>
+      <h2>Konfigurasi Login (Auth Settings)</h2>
+      <p>Satu kali setup agar login bisa bekerja dengan URL Vercel</p>
+    </div>
+  </div>
+  <div class="steps">
+
+    <div class="step-item">
+      <div class="step-circle">1</div>
+      <div class="step-body">
+        <h4>Tambahkan Redirect URL di Supabase</h4>
+        <p>Kembali ke Supabase Dashboard:</p>
+        <div class="nav-path">
+          <span>Authentication</span><span class="arrow">→</span>
+          <span>URL Configuration</span>
+        </div>
+        <div class="code-block" style="margin-top: 10px;">
+          <span class="line comment"># Di bagian "Redirect URLs", tambahkan:</span>
+          <span class="line"><span class="val">https://cc-system-xxx.vercel.app/auth/callback</span></span>
+          <span class="line comment">  ↑ Ganti dengan URL Vercel kamu yang sebenarnya</span>
+          <span class="line"></span>
+          <span class="line comment"># Juga tambahkan untuk development lokal (opsional):</span>
+          <span class="line"><span class="val">http://localhost:3000/auth/callback</span></span>
+        </div>
+        <div class="alert info">
+          <div class="alert-icon">ℹ️</div>
+          <div class="alert-content">
+            URL Vercel bisa dilihat di dashboard Vercel → klik project <code>cc-system</code> → tab "Domains"
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-item">
+      <div class="step-circle">2</div>
+      <div class="step-body">
+        <h4>Test login aplikasi</h4>
+        <p>Buka URL Vercel kamu di browser, lalu login dengan email dan password yang dibuat di Step 1.5.</p>
+        <div class="screenshot-box">
+          <div class="screen-header"><div class="dot-red"></div><div class="dot-amber"></div><div class="dot-green"></div><div class="screen-title">cc-system-xxx.vercel.app/login</div></div>
+          <div class="screen-content" style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px;">
+            <div style="font-size: 28px; margin-bottom: 4px;">📷</div>
+            <div style="font-weight: 700; font-size: 14px; color: #0f172a;">Creative Corner</div>
+            <div style="width: 100%; max-width: 260px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #94a3b8; background: #f8fafc; margin-top: 8px;">admin@creative.cc</div>
+            <div style="width: 100%; max-width: 260px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #94a3b8; background: #f8fafc;">••••••••</div>
+            <div style="width: 100%; max-width: 260px; background: #7c3aed; color: white; border-radius: 8px; padding: 8px 12px; font-size: 12px; text-align: center; font-weight: 600; margin-top: 4px;">Masuk →</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- STEP 5: TAMBAH ANGGOTA -->
+<div class="card">
+  <div class="section-header">
+    <div class="step-num">5</div>
+    <div>
+      <h2>Tambah Anggota CC</h2>
+      <p>Cara mendaftarkan semua anggota Creative Corner</p>
+    </div>
+  </div>
+
+  <div class="alert info">
+    <div class="alert-icon">📌</div>
+    <div class="alert-content">
+      <strong>Kenapa lewat Supabase Dashboard?</strong>
+      Untuk keamanan, pembuatan akun baru dilakukan dari Supabase Dashboard, bukan dari aplikasi. Ini mencegah siapa saja mendaftar sendiri.
+    </div>
+  </div>
+
+  <div class="steps" style="margin-top: 16px;">
+    <div class="step-item">
+      <div class="step-circle">1</div>
+      <div class="step-body">
+        <h4>Buat user baru</h4>
+        <div class="nav-path"><span>Supabase</span><span class="arrow">→</span><span>Authentication</span><span class="arrow">→</span><span>Users</span><span class="arrow">→</span><span>Add User</span></div>
+        <p style="margin-top: 8px; font-size: 13px;">Masukkan email dan password anggota. <strong>Aktifkan "Auto Confirm User"</strong> agar tidak perlu verifikasi email.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-circle">2</div>
+      <div class="step-body">
+        <h4>Update nama di tabel profiles</h4>
+        <div class="nav-path"><span>Table Editor</span><span class="arrow">→</span><span>profiles</span></div>
+        <p style="margin-top: 8px; font-size: 13px;">Cari baris user yang baru dibuat, klik pensil (edit), isi kolom <code>nama</code> dengan nama lengkap anggota.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-circle">3</div>
+      <div class="step-body">
+        <h4>Set role (jika perlu admin tambahan)</h4>
+        <p style="font-size: 13px;">Default role adalah <code>anggota</code>. Jika ingin menjadikan seseorang admin, ubah kolom <code>role</code> menjadi <code>admin</code> di tabel profiles. Role juga bisa diubah langsung dari halaman <strong>Admin → Kelola Akun</strong> di aplikasi.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-circle">4</div>
+      <div class="step-body">
+        <h4>Bagikan URL & credentials ke anggota</h4>
+        <p style="font-size: 13px;">Kirim URL Vercel kamu + email + password ke setiap anggota via WhatsApp. Anggota bisa langsung login!</p>
+        <div class="code-block">
+          <span class="line comment"># Template pesan WA yang bisa kamu kirim:</span>
+          <span class="line"></span>
+          <span class="line"><span class="highlight">Hai [Nama]! 👋</span></span>
+          <span class="line"><span class="cmd">Sistem CC sudah live. Ini akses kamu:</span></span>
+          <span class="line"><span class="cmd">🌐 Link: https://cc-system-xxx.vercel.app</span></span>
+          <span class="line"><span class="cmd">📧 Email: [email]</span></span>
+          <span class="line"><span class="cmd">🔒 Password: [password]</span></span>
+          <span class="line"><span class="cmd">Jangan share ke orang lain ya!</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 6: CUSTOM DOMAIN (OPSIONAL) -->
+<div class="card">
+  <div class="section-header">
+    <div class="step-num">★</div>
+    <div>
+      <h2>Custom Domain (Opsional)</h2>
+      <p>Ganti cc-system-xxx.vercel.app dengan domain sendiri</p>
+    </div>
+  </div>
+
+  <p style="font-size: 13.5px; margin-bottom: 12px;">URL dari Vercel defaultnya panjang. Kamu bisa pasang domain sendiri seperti <code>cc.namaorganisasimu.com</code></p>
+
+  <table class="info-table">
+    <tr>
+      <th>Opsi</th>
+      <th>Harga</th>
+      <th>Cara</th>
+    </tr>
+    <tr>
+      <td><strong>Vercel subdomain</strong><br><small>cc-system-kamu.vercel.app</small></td>
+      <td>Gratis ✓</td>
+      <td>Sudah otomatis, tidak perlu setup</td>
+    </tr>
+    <tr>
+      <td><strong>Custom .com domain</strong><br><small>cc.namaorganisasi.com</small></td>
+      <td>~Rp 150rb/tahun</td>
+      <td>Beli domain di Niagahoster/Domainesia → tambahkan di Vercel → Domains</td>
+    </tr>
+    <tr>
+      <td><strong>Domain .site / .online</strong></td>
+      <td>~Rp 20–50rb/tahun</td>
+      <td>Sama seperti di atas, tapi domain lebih murah</td>
+    </tr>
+  </table>
+
+  <div class="alert info" style="margin-top: 12px;">
+    <div class="alert-icon">💡</div>
+    <div class="alert-content">
+      Jika memakai custom domain, jangan lupa perbarui juga Redirect URL di Supabase Authentication → URL Configuration!
+    </div>
+  </div>
+</div>
+
+<!-- TROUBLESHOOTING -->
+<div class="card">
+  <div class="section-header">
+    <div class="step-num">?</div>
+    <div>
+      <h2>Troubleshooting</h2>
+      <p>Solusi untuk masalah yang paling sering terjadi</p>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+
+    <div style="border-left: 3px solid #ef4444; padding-left: 14px;">
+      <div style="font-size: 13.5px; font-weight: 700; color: #dc2626; margin-bottom: 4px;">❌ Login gagal — "Invalid login credentials"</div>
+      <div style="font-size: 13px; color: #475569;">Periksa: (1) Email dan password benar di Supabase Authentication → Users, (2) User sudah dikonfirmasi (tidak ada status "Unconfirmed"), (3) Supabase URL dan key sudah benar di Vercel env vars.</div>
+    </div>
+
+    <div style="border-left: 3px solid #ef4444; padding-left: 14px;">
+      <div style="font-size: 13.5px; font-weight: 700; color: #dc2626; margin-bottom: 4px;">❌ Halaman kosong / error 500 saat deploy</div>
+      <div style="font-size: 13px; color: #475569;">Paling sering karena env vars belum diisi. Di Vercel: Settings → Environment Variables → pastikan kedua variabel ada. Setelah mengubah env vars, klik "Redeploy".</div>
+    </div>
+
+    <div style="border-left: 3px solid #ef4444; padding-left: 14px;">
+      <div style="font-size: 13.5px; font-weight: 700; color: #dc2626; margin-bottom: 4px;">❌ Data tidak muncul / tampilan error "relation does not exist"</div>
+      <div style="font-size: 13px; color: #475569;">Script database.sql belum dijalankan atau ada error. Kembali ke Supabase SQL Editor dan jalankan ulang seluruh isi database.sql.</div>
+    </div>
+
+    <div style="border-left: 3px solid #ef4444; padding-left: 14px;">
+      <div style="font-size: 13.5px; font-weight: 700; color: #dc2626; margin-bottom: 4px;">❌ Upload foto gagal</div>
+      <div style="font-size: 13px; color: #475569;">Cek di Supabase Storage → Buckets → pastikan bucket "lampiran" sudah ada. Jika belum ada, script mungkin tidak berjalan sempurna. Buat manual: Storage → New bucket → nama "lampiran" → Public.</div>
+    </div>
+
+    <div style="border-left: 3px solid #ef4444; padding-left: 14px;">
+      <div style="font-size: 13.5px; font-weight: 700; color: #dc2626; margin-bottom: 4px;">❌ Login redirect ke halaman kosong (tidak masuk dashboard)</div>
+      <div style="font-size: 13px; color: #475569;">Redirect URL belum dikonfigurasi. Di Supabase → Authentication → URL Configuration → tambahkan: <code>https://URL-VERCEL-KAMU.vercel.app/auth/callback</code></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- RINGKASAN AKHIR -->
+<div class="card" style="background: linear-gradient(135deg, #f5f3ff, #ede9fe);">
+  <div style="text-align: center; padding: 8px 0;">
+    <div style="font-size: 40px; margin-bottom: 12px;">🎉</div>
+    <h2 style="font-size: 22px; font-weight: 800; color: #4c1d95; margin-bottom: 8px;">Selesai! Aplikasi Kamu Sudah Live</h2>
+    <p style="font-size: 13.5px; color: #6d28d9; margin-bottom: 24px;">Berikut checklist akhir yang harus sudah dilakukan:</p>
+  </div>
+  <ul class="checklist">
+    <li><div class="check-icon">✓</div><div>Project Supabase dibuat & database.sql sudah dijalankan</div></li>
+    <li><div class="check-icon">✓</div><div>API keys sudah disimpan (URL + anon key)</div></li>
+    <li><div class="check-icon">✓</div><div>Akun admin pertama sudah dibuat & role sudah diset ke <code>admin</code></div></li>
+    <li><div class="check-icon">✓</div><div>Kode sudah di-upload ke GitHub</div></li>
+    <li><div class="check-icon">✓</div><div>Project di-deploy ke Vercel dengan env vars yang benar</div></li>
+    <li><div class="check-icon">✓</div><div>Redirect URL dikonfigurasi di Supabase Auth</div></li>
+    <li><div class="check-icon">✓</div><div>Login berhasil & bisa masuk ke dashboard</div></li>
+    <li><div class="check-icon">✓</div><div>Akun anggota lain sudah dibuat dan diinformasikan</div></li>
+  </ul>
+</div>
+
+<div class="footer">
+  <h3>CC System — Creative Corner</h3>
+  <p>Dibuat dengan Next.js · Supabase · Vercel · Tailwind CSS</p>
+  <p style="margin-top: 6px;">Butuh bantuan? Tanyakan ke Claude di claude.ai 🤖</p>
+</div>
+
+</body>
+</html>
