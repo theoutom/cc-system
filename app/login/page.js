@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
 import { Camera, Lock, Mail, Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
@@ -10,7 +9,6 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const router = useRouter()
   const supabase = createClient()
 
   const handleLogin = async (e) => {
@@ -37,8 +35,8 @@ export default function LoginPage() {
         }
         setLoading(false)
       } else {
-        router.push('/dashboard')
-        router.refresh()
+        // Full page reload agar middleware bisa baca session cookie dengan benar
+        window.location.href = '/dashboard'
       }
     } catch (err) {
       if (err.message === 'timeout') {
