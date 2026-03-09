@@ -381,7 +381,7 @@ export default function PublikPinjamPage() {
     if (step === 0) return !!form.jenis_acara && !!form.nama_kegiatan && !!form.tanggal &&
       (!isOrganisasi || !!form.asal_organisasi) &&
       (isSekolah || !!(form.jenis_acara === 'Eksternal' && true || isOrganisasi && true))
-    if (step === 1) return !!form.nama_peminjam && (!needsPhone || !!form.no_telepon)
+    if (step === 1) return !!form.nama_peminjam && (!needsPhone || (!!form.no_telepon && form.no_telepon.replace(/\D/g, '').length >= 8))
     if (step === 2) return form.selected_items.length > 0
     return true
   }
@@ -573,12 +573,20 @@ export default function PublikPinjamPage() {
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nomor WhatsApp *</label>
                 <div className="relative">
                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input type="tel" value={form.no_telepon} onChange={e => set('no_telepon', e.target.value)}
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    value={form.no_telepon}
+                    onChange={e => set('no_telepon', e.target.value.replace(/[^\d+\s-]/g, ''))}
                     placeholder="cth: 08123456789"
+                    pattern="[0-9+\s\-]{8,15}"
                     className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
-                <p className="text-xs text-slate-400 mt-1">📱 Untuk dihubungi jika ada keperluan mendesak</p>
+                {form.no_telepon && form.no_telepon.replace(/\D/g, '').length < 8
+                  ? <p className="text-xs text-red-500 mt-1">⚠️ Nomor terlalu pendek (min. 8 digit)</p>
+                  : <p className="text-xs text-slate-400 mt-1">📱 Untuk dihubungi jika ada keperluan mendesak</p>
+                }
               </div>
             )}
 

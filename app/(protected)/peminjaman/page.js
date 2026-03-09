@@ -343,6 +343,11 @@ function InventarisGrid({ inventaris, selectedIds, onToggle }) {
                             : 'bg-red-100 text-red-600'
                           }`}>{item.kondisi}</span>
 
+                          {/* Catatan dari inventaris */}
+                          {item.catatan && (
+                            <p className="text-xs text-slate-400 mt-1 leading-tight">📝 {item.catatan}</p>
+                          )}
+
                           {isBusy && info && (
                             <div className="mt-2 space-y-0.5">
                               <p className="text-xs text-red-500 font-semibold">🔒 Sedang Dipinjam</p>
@@ -569,6 +574,7 @@ function PeminjamanForm({ onClose, onSuccess }) {
     if (step === 0 && (isOrganisasi || form.jenis_acara === 'Eksternal') && !form.asal_organisasi) return false
     if (step === 1 && !form.nama_peminjam) return false
     if (step === 1 && needsPhone && !form.no_telepon) return false
+    if (step === 1 && needsPhone && form.no_telepon.replace(/\D/g, '').length < 8) return false
     if (step === 2 && form.selected_items.length === 0) return false
     return true
   }
@@ -734,12 +740,24 @@ function PeminjamanForm({ onClose, onSuccess }) {
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nomor WhatsApp / Telepon *</label>
                 <div className="relative">
                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input type="tel" value={form.no_telepon} onChange={e => set('no_telepon', e.target.value)}
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    value={form.no_telepon}
+                    onChange={e => {
+                      // Hanya izinkan angka, +, dan spasi
+                      const val = e.target.value.replace(/[^\d+\s-]/g, '')
+                      set('no_telepon', val)
+                    }}
                     placeholder="cth: 08123456789"
+                    pattern="[0-9+\s\-]{8,15}"
                     className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
-                <p className="text-xs text-slate-400 mt-1">📱 Akan dihubungi jika ada keperluan mendesak</p>
+                {form.no_telepon && form.no_telepon.replace(/\D/g, '').length < 8 && (
+                  <p className="text-xs text-red-500 mt-1">⚠️ Nomor terlalu pendek (min. 8 digit)</p>
+                )}
+                {!form.no_telepon && <p className="text-xs text-slate-400 mt-1">📱 Akan dihubungi jika ada keperluan mendesak</p>}
               </div>
             )}
 
@@ -1158,6 +1176,11 @@ export default function PeminjamanPage() {
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${jenisColor[row.jenis_acara]}`}>
                         {row.jenis_acara}
                       </span>
+                      {row.asal_organisasi && (
+                        <span className="text-xs text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">
+                          🏢 {row.asal_organisasi}
+                        </span>
+                      )}
                       <p className="font-semibold text-slate-800 text-sm">{row.nama_kegiatan}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
@@ -1207,6 +1230,12 @@ export default function PeminjamanPage() {
                         )}
                       </div>
                       <div className="space-y-4">
+                        {row.asal_organisasi && (
+                          <div>
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Dari</p>
+                            <p className="text-sm text-slate-700">🏢 {row.asal_organisasi}</p>
+                          </div>
+                        )}
                         {row.no_telepon && (
                           <div>
                             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Kontak</p>

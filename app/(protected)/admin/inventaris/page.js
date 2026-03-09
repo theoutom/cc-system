@@ -31,13 +31,25 @@ export default function InventarisPage() {
       .in('status', ['pending', 'approved', 'active'])
 
     // Build map: inventaris_id → info peminjaman
+    // Dua cara: via items_dipinjam (UUID array) ATAU fallback via nama alat di detail_barang
     const map = {}
     if (aktif) {
       aktif.forEach(p => {
-        if (Array.isArray(p.items_dipinjam)) {
+        // Cara 1: via items_dipinjam (array UUID)
+        if (Array.isArray(p.items_dipinjam) && p.items_dipinjam.length > 0) {
           p.items_dipinjam.forEach(itemId => {
             if (!map[itemId]) map[itemId] = []
             map[itemId].push(p)
+          })
+        } else if (p.detail_barang) {
+          // Cara 2: fallback — cocokkan nama alat di detail_barang (teks)
+          const lines = p.detail_barang.toLowerCase().split('\n')
+          ;(inv || []).forEach(item => {
+            if (lines.some(l => l.includes(item.nama_alat.toLowerCase()))) {
+              if (!map[item.id]) map[item.id] = []
+              // Hindari duplikat
+              if (!map[item.id].find(x => x.id === p.id)) map[item.id].push(p)
+            }
           })
         }
       })

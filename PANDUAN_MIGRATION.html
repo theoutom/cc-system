@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panduan Jalankan Migration SQL — CC System</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; }
+  .container { max-width: 780px; margin: 0 auto; padding: 40px 20px; }
+  h1 { font-size: 1.6rem; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+  .subtitle { color: #64748b; font-size: 0.9rem; margin-bottom: 32px; }
+  
+  .alert { background: #fef3c7; border: 1.5px solid #f59e0b; border-radius: 12px; padding: 14px 18px; margin-bottom: 24px; font-size: 0.875rem; color: #78350f; }
+  .alert strong { display: block; margin-bottom: 4px; font-size: 0.95rem; }
+
+  .step { background: white; border-radius: 16px; border: 1.5px solid #e2e8f0; margin-bottom: 16px; overflow: hidden; }
+  .step-header { display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px; }
+  .step-num { min-width: 36px; height: 36px; background: #7c3aed; color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.9rem; flex-shrink: 0; }
+  .step-title { font-weight: 700; font-size: 1rem; color: #0f172a; }
+  .step-desc { color: #64748b; font-size: 0.85rem; margin-top: 3px; line-height: 1.5; }
+  .step-body { padding: 0 20px 18px 70px; }
+
+  .url-box { background: #f1f5f9; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 10px 14px; font-family: monospace; font-size: 0.9rem; color: #7c3aed; word-break: break-all; margin-top: 8px; }
+  
+  .btn-look { display: inline-block; background: #7c3aed; color: white; padding: 8px 18px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; margin-top: 8px; }
+  .btn-look-green { background: #16a34a; }
+  .btn-look-blue { background: #2563eb; }
+
+  .mock-sidebar { background: #1e1b2e; border-radius: 10px; padding: 12px; margin-top: 10px; width: fit-content; }
+  .mock-menu { color: #a78bfa; font-size: 0.82rem; padding: 6px 10px; border-radius: 6px; display: block; }
+  .mock-menu.active { background: #7c3aed; color: white; }
+
+  .mock-editor { background: #0f0e17; border-radius: 10px; padding: 14px 16px; margin-top: 10px; font-family: monospace; font-size: 0.82rem; color: #94a3b8; }
+  .mock-editor .comment { color: #4ade80; }
+  .mock-editor .keyword { color: #a78bfa; }
+  .mock-editor .val { color: #fbbf24; }
+  .mock-editor .placeholder { color: #475569; font-style: italic; }
+
+  .run-btn { background: #16a34a; color: white; padding: 8px 20px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; }
+
+  .success-box { background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 12px 14px; margin-top: 10px; }
+  .success-box code { font-family: monospace; font-size: 0.85rem; color: #15803d; }
+
+  .warning-box { background: #fff7ed; border: 1.5px solid #fdba74; border-radius: 10px; padding: 12px 14px; margin-top: 10px; font-size: 0.85rem; color: #9a3412; }
+
+  .feature-list { margin-top: 20px; }
+  .feature { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+  .feature:last-child { border-bottom: none; }
+  .feature-icon { font-size: 1.2rem; flex-shrink: 0; }
+  .feature-text strong { display: block; font-weight: 700; font-size: 0.9rem; }
+  .feature-text span { color: #64748b; font-size: 0.82rem; }
+
+  .done { background: #ecfdf5; border: 1.5px solid #6ee7b7; border-radius: 16px; padding: 20px; text-align: center; margin-top: 24px; }
+  .done h3 { font-size: 1.1rem; font-weight: 800; color: #065f46; margin-bottom: 6px; }
+  .done p { color: #047857; font-size: 0.875rem; }
+
+  .tag { display: inline-block; background: #f1f5f9; color: #475569; border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-family: monospace; }
+  
+  ul { padding-left: 20px; }
+  li { margin-bottom: 6px; font-size: 0.875rem; color: #475569; }
+  li strong { color: #1e293b; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>🔧 Panduan: Jalankan Migration SQL</h1>
+  <p class="subtitle">Diperlukan agar fitur baru (asal organisasi, inventaris real-time, akses publik) berfungsi</p>
+
+  <div class="alert">
+    <strong>⚠️ Kenapa fitur 2, 3, 5 belum tampil?</strong>
+    Kolom <code>asal_organisasi</code> dan <code>items_dipinjam</code> belum ada di database Supabase kamu.
+    Fiturnya sudah ada di kode, tinggal jalankan SQL di bawah ini dan semua langsung berfungsi.
+  </div>
+
+  <!-- Step 1 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div>
+        <div class="step-title">Buka Supabase Dashboard</div>
+        <div class="step-desc">Login ke Supabase dan pilih project CC System kamu</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="url-box">https://supabase.com/dashboard</div>
+      <p style="margin-top:10px; font-size:0.85rem; color:#64748b;">Klik project CC System → masuk ke dashboard project</p>
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <div>
+        <div class="step-title">Buka SQL Editor</div>
+        <div class="step-desc">Klik menu "SQL Editor" di sidebar kiri</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="mock-sidebar">
+        <span class="mock-menu">🏠 Home</span>
+        <span class="mock-menu">📊 Table Editor</span>
+        <span class="mock-menu active">⚡ SQL Editor  ← klik ini</span>
+        <span class="mock-menu">🔐 Authentication</span>
+        <span class="mock-menu">📦 Storage</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <div>
+        <div class="step-title">Buat Query Baru</div>
+        <div class="step-desc">Klik tombol "+ New query" di pojok kiri atas SQL Editor</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <span class="btn-look">+ New query</span>
+      <p style="margin-top:8px; font-size:0.85rem; color:#64748b;">Akan muncul editor kosong siap diisi</p>
+    </div>
+  </div>
+
+  <!-- Step 4 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <div>
+        <div class="step-title">Copy-paste isi file SQL</div>
+        <div class="step-desc">Buka file <strong>JALANKAN_DI_SUPABASE.sql</strong> dari folder yang kamu download, lalu copy semua isinya ke editor</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="mock-editor">
+        <span class="comment">-- CC SYSTEM — MIGRATION LENGKAP</span><br>
+        <span class="comment">-- Copy semua dari file JALANKAN_DI_SUPABASE.sql</span><br><br>
+        <span class="keyword">ALTER TABLE</span> peminjaman<br>
+        &nbsp;&nbsp;<span class="keyword">ADD COLUMN IF NOT EXISTS</span> items_dipinjam <span class="val">UUID[]</span>;<br><br>
+        <span class="keyword">ALTER TABLE</span> peminjaman<br>
+        &nbsp;&nbsp;<span class="keyword">ADD COLUMN IF NOT EXISTS</span> asal_organisasi <span class="val">TEXT</span>;<br><br>
+        <span class="placeholder">... (lanjut sampai bawah)</span>
+      </div>
+      <div class="warning-box">
+        💡 <strong>Tips:</strong> Ctrl+A untuk select all teks di editor Supabase sebelum paste, supaya tidak ada sisa query lama.
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 5 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">5</div>
+      <div>
+        <div class="step-title">Klik Run / Jalankan</div>
+        <div class="step-desc">Tekan tombol hijau "Run" atau shortcut <strong>Ctrl+Enter</strong></div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="run-btn">▶ Run</div>
+      <p style="margin-top:10px; font-size:0.85rem; color:#64748b;">Tunggu beberapa detik sampai muncul output di panel bawah</p>
+    </div>
+  </div>
+
+  <!-- Step 6 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">6</div>
+      <div>
+        <div class="step-title">Cek hasilnya di panel bawah</div>
+        <div class="step-desc">Pastikan output menampilkan "Migration berhasil!" dan angka kolom = 2</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="success-box">
+        <code>
+          status &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | kolom_baru_ada | total_policies<br>
+          ✅ Migration berhasil! | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;11
+        </code>
+      </div>
+      <div class="warning-box" style="margin-top:10px;">
+        ❌ <strong>Kalau muncul error?</strong> Coba jalankan ulang — SQL ini aman dijalankan berkali-kali. Kalau masih error, screenshot pesan errornya dan hubungi pengembang.
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 7 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">7</div>
+      <div>
+        <div class="step-title">Push kode ke GitHub → otomatis deploy ke Vercel</div>
+        <div class="step-desc">Semua file kode sudah siap, tinggal push dan tunggu deploy selesai</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="mock-editor">
+        <span class="comment"># Di terminal/command prompt, dari folder cc-system-fixed:</span><br><br>
+        git add .<br>
+        git commit -m <span class="val">"feat: akses publik, asal org, catatan alat, inventaris realtime"</span><br>
+        git push origin master
+      </div>
+      <p style="margin-top:10px; font-size:0.85rem; color:#64748b;">Vercel akan otomatis deploy dalam ~1-2 menit setelah push</p>
+    </div>
+  </div>
+
+  <!-- Fitur yang aktif setelah ini -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">✓</div>
+      <div>
+        <div class="step-title">Fitur yang langsung aktif setelah migration</div>
+        <div class="step-desc">Semua ini akan langsung berfungsi begitu migration dan deploy selesai</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div class="feature-list">
+        <div class="feature">
+          <div class="feature-icon">🏢</div>
+          <div class="feature-text">
+            <strong>Kolom "Asal Organisasi/Pihak" tampil</strong>
+            <span>Muncul di form peminjaman (step 1) untuk jenis Organisasi & Eksternal. Tampil di list peminjaman sebagai badge abu-abu di sebelah nama kegiatan.</span>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">📝</div>
+          <div class="feature-text">
+            <strong>Catatan alat tampil di grid</strong>
+            <span>Setiap card alat di grid Step 3 menampilkan catatan dari kolom <code>catatan</code> di tabel inventaris. Kalau kolom catatan kosong, tidak ada yang tampil.</span>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🔴</div>
+          <div class="feature-text">
+            <strong>Inventaris real-time dengan info peminjam</strong>
+            <span>Di halaman Admin → Inventaris, setiap alat yang dipinjam menampilkan nama kegiatan, asal organisasi, nama peminjam, dan estimasi kembali. Badge dibedakan: Dipinjam / Pending / Tersedia.</span>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">📱</div>
+          <div class="feature-text">
+            <strong>Nomor telepon hanya menerima angka</strong>
+            <span>Input nomor telepon sekarang memfilter karakter non-angka secara otomatis dan memvalidasi minimal 8 digit.</span>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🌐</div>
+          <div class="feature-text">
+            <strong>Akses publik (tanpa login)</strong>
+            <span>Tombol "Pinjam Alat" dan "Kembalikan" di halaman login membuka form publik di <code>/publik/pinjam</code> dan <code>/publik/kembali</code>.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="done">
+    <h3>🎉 Selesai!</h3>
+    <p>Setelah migration dijalankan dan kode di-push, semua fitur baru langsung aktif.<br>Tidak perlu restart server atau konfigurasi tambahan.</p>
+  </div>
+
+</div>
+</body>
+</html>
