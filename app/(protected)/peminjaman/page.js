@@ -5,7 +5,7 @@ import {
   Plus, X, Upload, Package, Phone, CalendarCheck,
   User, CreditCard, School, Search, ChevronDown, CheckCircle,
   AlertCircle, Camera, Layers, Battery, MemoryStick, Tag, Info,
-  Lock, Clock
+  Lock, Clock, Building2
 } from 'lucide-react'
 
 const JENIS = ['Sekolah', 'Organisasi', 'Eksternal']
@@ -479,6 +479,7 @@ function PeminjamanForm({ onClose, onSuccess }) {
   const [form, setForm] = useState({
     jenis_acara: 'Sekolah',
     nama_kegiatan: '',
+    asal_organisasi: '',
     tanggal: '',
     nama_peminjam: '',
     no_telepon: '',
@@ -565,6 +566,7 @@ function PeminjamanForm({ onClose, onSuccess }) {
 
   const validateStep = () => {
     if (step === 0 && (!form.jenis_acara || !form.nama_kegiatan || !form.tanggal)) return false
+    if (step === 0 && (isOrganisasi || form.jenis_acara === 'Eksternal') && !form.asal_organisasi) return false
     if (step === 1 && !form.nama_peminjam) return false
     if (step === 1 && needsPhone && !form.no_telepon) return false
     if (step === 2 && form.selected_items.length === 0) return false
@@ -589,6 +591,11 @@ function PeminjamanForm({ onClose, onSuccess }) {
     .filter(Boolean)
 
   const handleSubmit = async () => {
+    // Validasi dokumen wajib jika bukan sekolah
+    if (!isSekolah) {
+      if (!form.foto_identitas) { alert(`${identityLabel} wajib diupload!`); return }
+      if (!form.lampiran_bukti) { alert('Surat peminjaman wajib diupload!'); return }
+    }
     setSubmitting(true)
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -610,11 +617,12 @@ function PeminjamanForm({ onClose, onSuccess }) {
     await supabase.from('peminjaman').insert({
       jenis_acara: form.jenis_acara,
       nama_kegiatan: form.nama_kegiatan,
+      asal_organisasi: form.asal_organisasi || null,
       tanggal: form.tanggal,
       nama_peminjam: form.nama_peminjam,
       no_telepon: needsPhone ? form.no_telepon : null,
       detail_barang: detail,
-      items_dipinjam: form.selected_items,   // array UUID inventaris
+      items_dipinjam: form.selected_items,
       durasi_hari: Number(form.durasi_hari),
       perkiraan_kembali: form.perkiraan_kembali || null,
       lampiran_bukti: lampiran_url,
@@ -675,6 +683,25 @@ function PeminjamanForm({ onClose, onSuccess }) {
                 className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
+
+            {/* Asal organisasi — muncul jika Organisasi atau Eksternal */}
+            {(isOrganisasi || form.jenis_acara === 'Eksternal') && (
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  {isOrganisasi ? 'Nama Organisasi / Ekskul *' : 'Instansi / Pihak *'}
+                </label>
+                <div className="relative">
+                  <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input value={form.asal_organisasi} onChange={e => set('asal_organisasi', e.target.value)}
+                    placeholder={isOrganisasi ? 'cth: OSIS SMA N 1 Solo / Ekskul Fotografi' : 'cth: Pribadi / PT. Contoh Indonesia'}
+                    className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  {isOrganisasi ? '🎯 Nama lengkap organisasi atau ekskul' : '🌐 Nama instansi, komunitas, atau "Pribadi"'}
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">Tanggal Pemakaian *</label>
@@ -826,14 +853,16 @@ function PeminjamanForm({ onClose, onSuccess }) {
               <>
                 <div className={`flex items-center gap-2 p-3 rounded-xl text-sm ${isOrganisasi ? 'bg-orange-50 text-orange-700' : 'bg-purple-50 text-purple-700'}`}>
                   <CreditCard className="w-4 h-4 flex-shrink-0" />
-                  <span>Dokumen identitas wajib untuk peminjam <strong>{form.jenis_acara}</strong></span>
+                  <span>Dokumen berikut <strong>wajib</strong> diupload untuk peminjam <strong>{form.jenis_acara}</strong></span>
                 </div>
 
-                {/* Foto identitas */}
+                {/* Foto identitas — WAJIB */}
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">{identityLabel} *</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    {identityLabel} <span className="text-red-500">*</span>
+                  </label>
                   <label className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
-                    form.foto_identitas ? 'border-green-400 bg-green-50' : 'border-slate-300 hover:border-purple-400 hover:bg-purple-50'
+                    form.foto_identitas ? 'border-green-400 bg-green-50' : 'border-red-200 bg-red-50/30 hover:border-purple-400 hover:bg-purple-50'
                   }`}>
                     {form.foto_identitas ? (
                       <><CheckCircle className="w-7 h-7 text-green-500 mb-1.5" />
@@ -841,31 +870,39 @@ function PeminjamanForm({ onClose, onSuccess }) {
                         <p className="text-xs text-green-500">Klik untuk ganti</p>
                       </>
                     ) : (
-                      <><CreditCard className="w-7 h-7 text-slate-300 mb-1.5" />
-                        <p className="text-sm text-slate-500 font-medium">Klik untuk upload foto</p>
+                      <><CreditCard className="w-7 h-7 text-red-300 mb-1.5" />
+                        <p className="text-sm text-slate-500 font-medium">Klik untuk upload <span className="text-red-500">(wajib)</span></p>
                         <p className="text-xs text-slate-400 mt-0.5">JPG, PNG · Maks. 5MB</p>
                       </>
                     )}
                     <input type="file" accept="image/*" className="hidden"
                       onChange={e => set('foto_identitas', e.target.files[0] || null)} />
                   </label>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {isOrganisasi ? '📷 Foto kartu siswa atau kartu anggota ekskul' : '📷 Foto KTP atau kartu identitas yang berlaku'}
+                  </p>
                 </div>
 
-                {/* Lampiran opsional */}
+                {/* Surat peminjaman — WAJIB */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                    Lampiran Bukti Kegiatan <span className="text-slate-400 font-normal">(opsional)</span>
+                    Surat Peminjaman / Bukti Kegiatan <span className="text-red-500">*</span>
                   </label>
-                  <label className={`flex flex-col items-center justify-center w-full h-20 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
-                    form.lampiran_bukti ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-blue-400 hover:bg-blue-50'
+                  <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+                    form.lampiran_bukti ? 'border-green-400 bg-green-50' : 'border-red-200 bg-red-50/30 hover:border-blue-400 hover:bg-blue-50'
                   }`}>
-                    {form.lampiran_bukti
-                      ? <><CheckCircle className="w-5 h-5 text-blue-500 mb-1" /><p className="text-xs font-medium text-blue-700">{form.lampiran_bukti.name}</p></>
-                      : <><Upload className="w-5 h-5 text-slate-300 mb-1" /><p className="text-xs text-slate-500">Screenshot undangan / surat kegiatan</p></>
-                    }
+                    {form.lampiran_bukti ? (
+                      <><CheckCircle className="w-6 h-6 text-green-500 mb-1" /><p className="text-xs font-medium text-green-700">{form.lampiran_bukti.name}</p></>
+                    ) : (
+                      <><Upload className="w-6 h-6 text-red-300 mb-1" />
+                        <p className="text-xs text-slate-500 font-medium">Upload surat <span className="text-red-500">(wajib)</span></p>
+                        <p className="text-xs text-slate-400 mt-0.5">JPG, PNG, PDF · Maks. 5MB</p>
+                      </>
+                    )}
                     <input type="file" accept="image/*,.pdf" className="hidden"
                       onChange={e => set('lampiran_bukti', e.target.files[0] || null)} />
                   </label>
+                  <p className="text-xs text-slate-400 mt-1">📄 Surat resmi, screenshot undangan, atau bukti kegiatan</p>
                 </div>
               </>
             )}
@@ -876,6 +913,7 @@ function PeminjamanForm({ onClose, onSuccess }) {
               <div className="space-y-1.5 text-xs mb-3">
                 {[
                   ['Kegiatan', `${form.nama_kegiatan} (${form.jenis_acara})`],
+                  ...(form.asal_organisasi ? [['Dari', form.asal_organisasi]] : []),
                   ['Peminjam', form.nama_peminjam],
                   ...(needsPhone ? [['No. HP', form.no_telepon]] : []),
                   ['Tanggal', form.tanggal],

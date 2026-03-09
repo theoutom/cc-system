@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
+// Route publik yang bisa diakses tanpa login
+const PUBLIC_PATHS = ['/login', '/publik']
+
 export async function middleware(request) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -9,13 +12,9 @@ export async function middleware(request) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
+        getAll() { return request.cookies.getAll() },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -25,11 +24,10 @@ export async function middleware(request) {
     }
   )
 
-  // PENTING: Gunakan getUser() bukan getSession() untuk keamanan
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  // Skip middleware untuk static assets dan auth routes
+  // Skip static assets & auth routes
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/auth') ||
@@ -38,14 +36,18 @@ export async function middleware(request) {
     return supabaseResponse
   }
 
-  // Redirect ke login jika belum login
+  // Publik routes — boleh diakses siapa saja
+  const isPublic = PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
+  if (isPublic) return supabaseResponse
+
+  // Proteksi semua route lain
   if (!user && pathname !== '/login') {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Redirect ke dashboard jika sudah login tapi buka /login atau /
+  // Sudah login, redirect dari login/root ke dashboard
   if (user && (pathname === '/login' || pathname === '/')) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'

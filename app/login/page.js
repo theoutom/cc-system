@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { Camera, Lock, Mail, Eye, EyeOff } from 'lucide-react'
+import { Camera, Lock, Mail, Eye, EyeOff, UserX } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -16,7 +16,6 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    // Timeout 10 detik — jika Supabase tidak merespons
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('timeout')), 10000)
     )
@@ -35,7 +34,6 @@ export default function LoginPage() {
         }
         setLoading(false)
       } else {
-        // Full page reload agar middleware bisa baca session cookie dengan benar
         window.location.href = '/dashboard'
       }
     } catch (err) {
@@ -118,9 +116,32 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-slate-500 text-xs mt-6">
-          Tidak punya akun? Hubungi Admin CC
-        </p>
+        {/* Divider */}
+        <div className="flex items-center gap-3 my-5">
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-slate-500 text-xs">atau</span>
+          <div className="flex-1 h-px bg-white/10" />
+        </div>
+
+        {/* Guest access */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+          <p className="text-slate-400 text-xs text-center mb-3 font-medium">
+            Mau pinjam / kembalikan alat tanpa akun?
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <a href="/publik/pinjam"
+              className="flex items-center justify-center gap-2 py-2.5 px-4 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-sm font-medium transition-colors">
+              📦 Pinjam Alat
+            </a>
+            <a href="/publik/kembali"
+              className="flex items-center justify-center gap-2 py-2.5 px-4 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-sm font-medium transition-colors">
+              🔄 Kembalikan
+            </a>
+          </div>
+          <p className="text-slate-600 text-xs text-center mt-3">
+            Akses tamu tidak memerlukan akun
+          </p>
+        </div>
       </div>
     </div>
   )
