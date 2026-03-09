@@ -17,13 +17,40 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError('Email atau password salah. Coba lagi.')
+
+    // Timeout 10 detik — jika Supabase tidak merespons
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 10000)
+    )
+
+    try {
+      const { error } = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        timeout,
+      ])
+
+      if (error) {
+        if (error.message?.includes('Invalid login')) {
+          setError('Email atau password salah. Periksa kembali.')
+        } else {
+          setError('Login gagal: ' + error.message)
+        }
+        setLoading(false)
+      } else {
+        router.push('/dashboard')
+        router.refresh()
+      }
+    } catch (err) {
+      if (err.message === 'timeout') {
+        setError(
+          'Koneksi ke server timeout. Kemungkinan penyebab:\n' +
+          '1. Project Supabase sedang pause — buka supabase.com/dashboard dan klik Restore\n' +
+          '2. URL atau API Key di Vercel salah — cek Settings → Environment Variables'
+        )
+      } else {
+        setError('Terjadi kesalahan: ' + err.message)
+      }
       setLoading(false)
-    } else {
-      router.push('/dashboard')
-      router.refresh()
     }
   }
 
@@ -44,8 +71,8 @@ export default function LoginPage() {
           <h2 className="text-xl font-semibold text-white mb-6">Masuk ke Sistem</h2>
 
           {error && (
-            <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg text-sm mb-5">
-              {error}
+            <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg text-sm mb-5 whitespace-pre-line leading-relaxed">
+              ⚠️ {error}
             </div>
           )}
 
