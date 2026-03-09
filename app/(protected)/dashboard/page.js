@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabaseServer'
 import { Package, RotateCcw, AlertCircle, Calendar, Box, TrendingUp } from 'lucide-react'
 
 export default async function DashboardPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const [
     { count: totalPeminjaman },
