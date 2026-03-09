@@ -66,6 +66,14 @@ export default function PengembalianPage() {
 
     await supabase.from('peminjaman').update({ status: 'returned' }).eq('id', selected.id)
 
+    // Kembalikan status alat ke 'Tersedia' otomatis
+    if (Array.isArray(selected.items_dipinjam) && selected.items_dipinjam.length > 0) {
+      await supabase
+        .from('inventaris')
+        .update({ status: 'Tersedia' })
+        .in('id', selected.items_dipinjam)
+    }
+
     setShowForm(false)
     setSelected(null)
     setSubmitting(false)
