@@ -117,6 +117,7 @@ export default function JadwalPage() {
   const [viewMode, setViewMode]     = useState('table')
   const [filterBulan, setFilterBulan] = useState('')
   const [calMonth, setCalMonth]     = useState(new Date())
+  const [peminjamanByJadwal, setPeminjamanByJadwal] = useState({})
 
   useEffect(() => {
     const init = async () => {
@@ -138,6 +139,21 @@ export default function JadwalPage() {
       results[t.key] = rows || []
     }))
     setData(results)
+
+    // Fetch relasi peminjaman → jadwal
+    const { data: linked } = await supabase
+      .from('peminjaman')
+      .select('jadwal_id, status, nama_peminjam')
+      .not('jadwal_id', 'is', null)
+    if (linked) {
+      const map = {}
+      linked.forEach(p => {
+        if (!map[p.jadwal_id]) map[p.jadwal_id] = []
+        map[p.jadwal_id].push(p)
+      })
+      setPeminjamanByJadwal(map)
+    }
+
     setLoading(false)
   }
 
@@ -166,6 +182,7 @@ export default function JadwalPage() {
 
     const payload = isD ? {
       nama_kegiatan:        form.nama_kegiatan,
+      keterangan:           form.nama_kegiatan,   // backward compat — kolom lama
       tanggal:              form.tanggal || null,
       waktu_kegiatan:       form.waktu_kegiatan || null,
       cam1_operator:        form.cam1_operator || null,
@@ -173,7 +190,7 @@ export default function JadwalPage() {
       cam_video_operator:   form.cam_video_operator || null,
       live_report_operator: form.live_report_operator || null,
       catatan:              form.catatan || null,
-      status:               form.status,
+      status:               'Belum Dibuat',
     } : {
       keterangan: form.keterangan,
       tanggal:    form.tanggal || null,
@@ -457,6 +474,7 @@ export default function JadwalPage() {
                       <th className="text-left px-4 py-3 font-semibold text-slate-600">📷 Cam 2</th>
                       <th className="text-left px-4 py-3 font-semibold text-slate-600">🎬 Video</th>
                       <th className="text-left px-4 py-3 font-semibold text-slate-600">📡 Live</th>
+                      <th className="text-left px-4 py-3 font-semibold text-slate-600">🔗 Peminjaman</th>
                       {isAdmin && <th className="px-4 py-3 w-20 no-print"></th>}
                     </tr>
                   </thead>
@@ -486,6 +504,29 @@ export default function JadwalPage() {
                           <td className="px-4 py-3"><NameBadge name={row.cam2_operator} myName={myName}/></td>
                           <td className="px-4 py-3"><NameBadge name={row.cam_video_operator} myName={myName}/></td>
                           <td className="px-4 py-3"><NameBadge name={row.live_report_operator} myName={myName}/></td>
+                          <td className="px-4 py-3">
+                            {(peminjamanByJadwal[row.id] || []).length > 0 ? (
+                              <div className="flex flex-col gap-1">
+                                {(peminjamanByJadwal[row.id] || []).map((p, i) => {
+                                  const colors = {
+                                    pending:  'bg-amber-100 text-amber-700',
+                                    approved: 'bg-blue-100 text-blue-700',
+                                    active:   'bg-green-100 text-green-700',
+                                    returned: 'bg-slate-100 text-slate-500',
+                                    rejected: 'bg-red-100 text-red-600',
+                                  }
+                                  const labels = { pending:'Menunggu', approved:'Disetujui', active:'Aktif', returned:'Selesai', rejected:'Ditolak' }
+                                  return (
+                                    <span key={i} className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${colors[p.status] || 'bg-slate-100 text-slate-600'}`}>
+                                      📋 {labels[p.status] || p.status}
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            ) : (
+                              <span className="text-slate-300 text-xs">—</span>
+                            )}
+                          </td>
                           {isAdmin && (
                             <td className="px-4 py-3 no-print">
                               <div className="flex items-center gap-1">

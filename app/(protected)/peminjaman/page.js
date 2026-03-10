@@ -494,6 +494,7 @@ function PeminjamanForm({ onClose, onSuccess }) {
     perkiraan_kembali: '',
     lampiran_bukti: null,
     foto_identitas: null,
+    jadwal_id: null,      // relasi ke jadwal_dokumentasi (opsional)
   })
 
   const set = (key, val) => setForm(f => {
@@ -523,6 +524,8 @@ function PeminjamanForm({ onClose, onSuccess }) {
   const steps = ['Jenis & Kegiatan', 'Detail Peminjam', 'Pilih Alat', 'Dokumen']
 
   // Fetch inventaris + info peminjaman aktif
+  const [jadwalList, setJadwalList] = useState([])
+
   useEffect(() => {
     const fetchInventaris = async () => {
       setLoadingInventaris(true)
@@ -564,6 +567,16 @@ function PeminjamanForm({ onClose, onSuccess }) {
       }))
 
       setInventaris(enriched)
+
+      // Ambil jadwal dokumentasi yang belum lewat (untuk relasi)
+      const today = new Date().toISOString().split('T')[0]
+      const { data: jadwal } = await supabase
+        .from('jadwal_dokumentasi')
+        .select('id, nama_kegiatan, tanggal, waktu_kegiatan')
+        .gte('tanggal', today)
+        .order('tanggal', { ascending: true })
+      setJadwalList(jadwal || [])
+
       setLoadingInventaris(false)
     }
     fetchInventaris()
@@ -635,6 +648,7 @@ function PeminjamanForm({ onClose, onSuccess }) {
       foto_identitas: identitas_url,
       status: 'pending',
       created_by: user?.id,
+      jadwal_id: form.jadwal_id || null,
     })
 
     setSubmitting(false)
@@ -680,6 +694,44 @@ function PeminjamanForm({ onClose, onSuccess }) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                🔗 Tautkan ke Jadwal Dokumentasi
+                <span className="ml-1.5 text-xs font-normal text-slate-400">(opsional)</span>
+              </label>
+              {jadwalList.length === 0 ? (
+                <p className="text-xs text-slate-400 py-2">Tidak ada jadwal dokumentasi mendatang</p>
+              ) : (
+                <select
+                  value={form.jadwal_id || ''}
+                  onChange={e => {
+                    const id = e.target.value || null
+                    const jadwal = jadwalList.find(j => j.id === id)
+                    set('jadwal_id', id)
+                    // Auto-isi nama & tanggal dari jadwal yang dipilih
+                    if (jadwal) {
+                      set('nama_kegiatan', jadwal.nama_kegiatan || form.nama_kegiatan)
+                      if (jadwal.tanggal) set('tanggal', jadwal.tanggal)
+                    }
+                  }}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm
+                    focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                >
+                  <option value="">— Tidak tautkan ke jadwal —</option>
+                  {jadwalList.map(j => (
+                    <option key={j.id} value={j.id}>
+                      📅 {j.tanggal ? new Date(j.tanggal).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'}) : '—'}{j.waktu_kegiatan ? ` ${j.waktu_kegiatan.slice(0,5)}` : ''} — {j.nama_kegiatan || 'Tanpa nama'}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {form.jadwal_id && (
+                <p className="text-xs text-purple-600 mt-1 flex items-center gap-1">
+                  ✅ Peminjaman ini akan terhubung ke jadwal dokumentasi
+                </p>
+              )}
             </div>
 
             <div>
