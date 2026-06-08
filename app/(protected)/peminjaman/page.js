@@ -85,12 +85,15 @@ function PeminjamanForm({ onClose, onSuccess }) {
     nama_kegiatan: '',
     asal_organisasi: '',
     tanggal: '',
+    jam_peminjaman: '',
+    jam_acara: '',
     nama_peminjam: '',
     no_telepon: '',
     selected_items: [],
     catatan_barang: '',
     durasi_hari: 1,
     perkiraan_kembali: '',
+    jam_pengembalian: '',
     lampiran_bukti: null,
     foto_identitas: null,
     jadwal_id: null,
@@ -212,6 +215,9 @@ function PeminjamanForm({ onClose, onSuccess }) {
         nama_kegiatan: form.nama_kegiatan,
         asal_organisasi: form.asal_organisasi || null,
         tanggal: form.tanggal,
+        jam_peminjaman: form.jam_peminjaman || null,
+        jam_acara: form.jam_acara || null,
+        jam_pengembalian: form.jam_pengembalian || null,
         nama_peminjam: form.nama_peminjam,
         no_telepon: needsPhone ? form.no_telepon : null,
         detail_barang: detail,
@@ -337,6 +343,21 @@ function PeminjamanForm({ onClose, onSuccess }) {
                 className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Jam Pengambilan Alat</label>
+                <input type="time" value={form.jam_peminjaman} onChange={e => set('jam_peminjaman', e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Jam Mulai Acara</label>
+                <input type="time" value={form.jam_acara} onChange={e => set('jam_acara', e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+            </div>
           </>}
 
           {/* STEP 1 */}
@@ -418,7 +439,7 @@ function PeminjamanForm({ onClose, onSuccess }) {
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 flex items-center gap-3 mb-2">
                   <CalendarCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                   <div>
-                    <p className="text-xs text-emerald-600">Perkiraan kembali:</p>
+                    <p className="text-xs text-emerald-600">Perkiraan tanggal kembali:</p>
                     <p className="text-sm font-bold text-emerald-700">
                       {new Date(form.perkiraan_kembali + 'T00:00:00').toLocaleDateString('id-ID', {
                         weekday: 'short', day: 'numeric', month: 'long', year: 'numeric'
@@ -427,6 +448,13 @@ function PeminjamanForm({ onClose, onSuccess }) {
                   </div>
                 </div>
               )}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Jam Pengembalian Alat</label>
+                <input type="time" value={form.jam_pengembalian} onChange={e => set('jam_pengembalian', e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">Jam pengembalian alat pada tanggal perkiraan di atas</p>
+              </div>
             </div>
 
             <div className="border-t border-slate-100" />
@@ -541,8 +569,10 @@ function PeminjamanForm({ onClose, onSuccess }) {
                   ['Peminjam', form.nama_peminjam],
                   ...(needsPhone ? [['No. HP', form.no_telepon]] : []),
                   ['Tanggal', form.tanggal],
+                  ...(form.jam_peminjaman ? [['Jam Ambil', form.jam_peminjaman]] : []),
+                  ...(form.jam_acara ? [['Jam Acara', form.jam_acara]] : []),
                   ['Durasi', `${form.durasi_hari} hari`],
-                  ['Est. kembali', form.perkiraan_kembali],
+                  ['Est. kembali', `${form.perkiraan_kembali}${form.jam_pengembalian ? ' · ' + form.jam_pengembalian : ''}`],
                 ].map(([k, v]) => (
                   <div key={k} className="flex gap-2">
                     <span className="text-slate-400 w-24 flex-shrink-0">{k}</span>
@@ -602,8 +632,9 @@ export default function PeminjamanPage() {
   const [filterStatus, setFilterStatus] = useState('Semua')
   const [search, setSearch]         = useState('')
   const [expanded, setExpanded]     = useState(null)
+  const [daftarHitam, setDaftarHitam] = useState([])
 
-  useEffect(() => { fetchData(); fetchProfile(); fetchInventaris() }, [])
+  useEffect(() => { fetchData(); fetchProfile(); fetchInventaris(); fetchDaftarHitam() }, [])
 
   const fetchProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -617,6 +648,13 @@ export default function PeminjamanPage() {
     const { data: items } = await supabase.from('inventaris').select('id, nama_alat, kategori, denda_per_hari')
     setInventaris(items || [])
   }
+
+  const fetchDaftarHitam = async () => {
+    const { data } = await supabase.from('daftar_hitam').select('nama')
+    setDaftarHitam((data || []).map(d => d.nama.toLowerCase()))
+  }
+
+  const isBlacklisted = (row) => daftarHitam.includes((row.nama_peminjam || '').toLowerCase())
 
   const fetchData = async () => {
     setLoading(true)
@@ -780,6 +818,7 @@ export default function PeminjamanPage() {
             const namaAlat = resolveNamas(row.items_dipinjam)
             const overdueInfo = getOverdueInfo(row)
             const fine = calcFine(row)
+            const blacklisted = isBlacklisted(row)
             return (
               <div key={row.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${overdueInfo?.isOver ? 'border-red-200' : overdueInfo?.isToday || overdueInfo?.isNear ? 'border-amber-200' : 'border-slate-100'}`}>
                 <div className="px-5 py-4 flex items-center gap-4 cursor-pointer hover:bg-slate-50/60 transition-colors"
@@ -805,14 +844,24 @@ export default function PeminjamanPage() {
                           ⚠ {overdueInfo.label}
                         </span>
                       )}
+                      {blacklisted && (
+                        <span className="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          🚫 Daftar Hitam
+                        </span>
+                      )}
                       <p className="font-semibold text-slate-800 text-sm">{row.nama_kegiatan}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
                       <span>👤 {row.nama_peminjam}</span>
                       <span>📅 {row.tanggal}</span>
                       {row.durasi_hari && <span>⏱ {row.durasi_hari} hari</span>}
+                      {row.jam_peminjaman && (
+                        <span>⬆️ Ambil: <strong className="text-slate-600">{row.jam_peminjaman.slice(0,5)}</strong></span>
+                      )}
                       {row.perkiraan_kembali && (
-                        <span>🔄 Est. kembali: <strong className="text-slate-600">{row.perkiraan_kembali}</strong></span>
+                        <span>🔄 Est. kembali: <strong className="text-slate-600">
+                          {row.perkiraan_kembali}{row.jam_pengembalian ? ` · ${row.jam_pengembalian.slice(0,5)}` : ''}
+                        </strong></span>
                       )}
                       {namaAlat && namaAlat.length > 0 && (
                         <span className="text-purple-500 font-medium">
@@ -862,6 +911,31 @@ export default function PeminjamanPage() {
                             <p className="text-sm text-slate-700">📱 {row.no_telepon}</p>
                           </div>
                         )}
+                        {(row.jam_peminjaman || row.jam_acara || row.jam_pengembalian) && (
+                          <div>
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Jadwal Waktu</p>
+                            <div className="bg-slate-50 rounded-xl border border-slate-100 divide-y divide-slate-100">
+                              {row.jam_peminjaman && (
+                                <div className="flex items-center justify-between px-3 py-2">
+                                  <span className="text-xs text-slate-500">⬆️ Jam pengambilan alat</span>
+                                  <span className="text-xs font-bold text-slate-700">{row.jam_peminjaman.slice(0,5)}</span>
+                                </div>
+                              )}
+                              {row.jam_acara && (
+                                <div className="flex items-center justify-between px-3 py-2">
+                                  <span className="text-xs text-slate-500">🎬 Jam mulai acara</span>
+                                  <span className="text-xs font-bold text-slate-700">{row.jam_acara.slice(0,5)}</span>
+                                </div>
+                              )}
+                              {row.jam_pengembalian && (
+                                <div className="flex items-center justify-between px-3 py-2">
+                                  <span className="text-xs text-slate-500">⬇️ Jam pengembalian alat</span>
+                                  <span className="text-xs font-bold text-emerald-700">{row.jam_pengembalian.slice(0,5)}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         {row.foto_identitas && (
                           <div>
                             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Dokumen Identitas</p>
@@ -908,6 +982,12 @@ export default function PeminjamanPage() {
                           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                             <p className="text-xs font-semibold text-amber-700">⚠ {overdueInfo.label}</p>
                             <p className="text-xs text-amber-500 mt-0.5">Harap segera koordinasi pengembalian alat.</p>
+                          </div>
+                        )}
+                        {blacklisted && (
+                          <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                            <p className="text-xs font-bold text-red-700">🚫 Peminjam dalam Daftar Hitam</p>
+                            <p className="text-xs text-red-500 mt-0.5">Pertimbangkan kembali sebelum menyetujui peminjaman ini.</p>
                           </div>
                         )}
                         {profile?.role === 'admin' && (

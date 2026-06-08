@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
-import { Eye, Search, AlertCircle, CheckCircle, Clock } from 'lucide-react'
+import { Eye, Search, AlertCircle, CheckCircle, Clock, Camera } from 'lucide-react'
 
 export default function PemantauanPage() {
   const supabase = createClient()
@@ -130,7 +130,8 @@ export default function PemantauanPage() {
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Tgl Pinjam</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Jenis</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Status</th>
-                  {tab === 'sudah_kembali' && <th className="text-left px-4 py-3 font-medium text-slate-600">Tgl Kembali</th>}
+                  {tab === 'sudah_kembali' && <th className="text-left px-4 py-3 font-medium text-slate-600">Kembali</th>}
+                  {tab === 'sudah_kembali' && <th className="text-left px-4 py-3 font-medium text-slate-600">Foto Kondisi</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -141,7 +142,15 @@ export default function PemantauanPage() {
                       <p className="text-xs text-slate-400 line-clamp-1">{row.detail_barang}</p>
                     </td>
                     <td className="px-4 py-3 text-slate-700">{row.nama_peminjam}</td>
-                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{row.tanggal}</td>
+                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                      <p>{row.tanggal}</p>
+                      {row.jam_peminjaman && <p className="text-xs text-slate-400">⬆️ Ambil {row.jam_peminjaman.slice(0,5)}</p>}
+                      {tab === 'belum_kembali' && row.perkiraan_kembali && (
+                        <p className="text-xs text-amber-500">
+                          ⬇️ Est. {row.perkiraan_kembali}{row.jam_pengembalian ? ` · ${row.jam_pengembalian.slice(0,5)}` : ''}
+                        </p>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${jenisColor[row.jenis_acara]}`}>
                         {row.jenis_acara}
@@ -164,6 +173,20 @@ export default function PemantauanPage() {
                       <td className="px-4 py-3 text-slate-600 text-xs">
                         {row.pengembalian?.[0]?.tanggal_pengembalian || '-'}
                         {row.pengembalian?.[0]?.jam_pengembalian ? ` · ${row.pengembalian[0].jam_pengembalian}` : ''}
+                      </td>
+                    )}
+                    {tab === 'sudah_kembali' && (
+                      <td className="px-4 py-3">
+                        {row.pengembalian?.find(p => p.foto_kondisi)?.foto_kondisi ? (
+                          <a href={row.pengembalian.find(p => p.foto_kondisi).foto_kondisi}
+                            target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline">
+                            <Camera className="w-3.5 h-3.5" />
+                            Lihat Foto
+                          </a>
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
                       </td>
                     )}
                   </tr>

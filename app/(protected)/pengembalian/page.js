@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
-import { RotateCcw, CheckCircle, X, Package, AlertTriangle } from 'lucide-react'
+import { RotateCcw, CheckCircle, X, Package, AlertTriangle, Camera } from 'lucide-react'
 
 export default function PengembalianPage() {
   const supabase = createClient()
@@ -18,6 +18,7 @@ export default function PengembalianPage() {
     tanggal_pengembalian: '',
     jam_pengembalian: '',
     catatan: '',
+    foto_kondisi_file: null,
   })
 
   useEffect(() => { fetchData() }, [])
@@ -47,6 +48,7 @@ export default function PengembalianPage() {
       tanggal_pengembalian: now.toISOString().split('T')[0],
       jam_pengembalian: now.toTimeString().slice(0, 5),
       catatan: '',
+      foto_kondisi_file: null,
     })
     // Default: pilih semua item yang belum dikembalikan
     const belumKembali = (pem.items_dipinjam || []).filter(
@@ -80,6 +82,17 @@ export default function PengembalianPage() {
     const isPartial = sisaItems.length > 0
 
     try {
+      let foto_kondisi = null
+      if (form.foto_kondisi_file) {
+        const f = form.foto_kondisi_file
+        if (f.size > 5 * 1024 * 1024) { alert('Foto melebihi 5MB!'); setSubmitting(false); return }
+        const ext = f.name.split('.').pop()
+        const path = `kondisi-${Date.now()}.${ext}`
+        const { error: upErr } = await supabase.storage.from('lampiran').upload(path, f)
+        if (upErr) throw upErr
+        foto_kondisi = supabase.storage.from('lampiran').getPublicUrl(path).data?.publicUrl
+      }
+
       const { error } = await supabase.from('pengembalian').insert({
         peminjaman_id: selected.id,
         nama_pengembali: form.nama_pengembali,
@@ -88,6 +101,7 @@ export default function PengembalianPage() {
         detail_barang_kembali: namaAlat.join('\n') + (form.catatan ? `\n\nCatatan: ${form.catatan}` : ''),
         items_dikembalikan: selectedReturn,
         is_partial: isPartial,
+        foto_kondisi,
       })
       if (error) throw error
     } catch (e) {
@@ -362,6 +376,31 @@ export default function PengembalianPage() {
                     rows={2} placeholder="cth: SD Card ada goresan kecil"
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
                   />
+
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Foto Kondisi Alat <span className="text-slate-400 font-normal">(opsional)</span>
+                    </label>
+                    <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+                      form.foto_kondisi_file ? 'border-green-400 bg-green-50' : 'border-slate-200 hover:border-green-400 hover:bg-green-50/30'
+                    }`}>
+                      {form.foto_kondisi_file ? (
+                        <>
+                          <CheckCircle className="w-6 h-6 text-green-500 mb-1" />
+                          <p className="text-xs font-medium text-green-700">{form.foto_kondisi_file.name}</p>
+                          <p className="text-xs text-green-500">Klik untuk ganti</p>
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="w-6 h-6 text-slate-300 mb-1" />
+                          <p className="text-xs text-slate-400">Foto kondisi alat saat dikembalikan</p>
+                          <p className="text-xs text-slate-300 mt-0.5">JPG, PNG · Maks. 5MB</p>
+                        </>
+                      )}
+                      <input type="file" accept="image/*" className="hidden"
+                        onChange={e => setForm(f => ({ ...f, foto_kondisi_file: e.target.files[0] || null }))} />
+                    </label>
+                  </div>
                 </div>
               </div>
 

@@ -68,12 +68,15 @@ export default function PublikPinjamPage() {
     nama_kegiatan: '',
     asal_organisasi: '',
     tanggal: '',
+    jam_peminjaman: '',
+    jam_acara: '',
     nama_peminjam: '',
     no_telepon: '',
     selected_items: [],
     catatan_barang: '',
     durasi_hari: 1,
     perkiraan_kembali: '',
+    jam_pengembalian: '',
     lampiran_bukti: null,
     foto_identitas: null,
   })
@@ -150,10 +153,11 @@ export default function PublikPinjamPage() {
 
   const validateStep = () => {
     if (step === 0) return !!form.jenis_acara && !!form.nama_kegiatan && !!form.tanggal &&
+      !!form.jam_peminjaman &&
       (!isOrganisasi || !!form.asal_organisasi) &&
       (form.jenis_acara !== 'Eksternal' || !!form.asal_organisasi)
     if (step === 1) return !!form.nama_peminjam && (!needsPhone || (!!form.no_telepon && form.no_telepon.replace(/\D/g, '').length >= 8))
-    if (step === 2) return form.selected_items.length > 0
+    if (step === 2) return form.selected_items.length > 0 && !!form.jam_pengembalian
     return true
   }
 
@@ -196,6 +200,9 @@ export default function PublikPinjamPage() {
         nama_kegiatan: form.nama_kegiatan,
         asal_organisasi: form.asal_organisasi || null,
         tanggal: form.tanggal,
+        jam_peminjaman: form.jam_peminjaman || null,
+        jam_acara: form.jam_acara || null,
+        jam_pengembalian: form.jam_pengembalian || null,
         nama_peminjam: form.nama_peminjam,
         no_telepon: needsPhone ? form.no_telepon : null,
         detail_barang: detail,
@@ -348,6 +355,25 @@ export default function PublikPinjamPage() {
                 className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Jam Pengambilan Alat *</label>
+                <input type="time" value={form.jam_peminjaman} onChange={e => set('jam_peminjaman', e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">Jam kamu mengambil alat ke CC</p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  Jam Mulai Acara <span className="text-slate-400 font-normal">(opsional)</span>
+                </label>
+                <input type="time" value={form.jam_acara} onChange={e => set('jam_acara', e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">Jam kegiatan dimulai</p>
+              </div>
+            </div>
           </>}
 
           {/* ── STEP 1: Data Peminjam ── */}
@@ -432,13 +458,23 @@ export default function PublikPinjamPage() {
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 flex items-center gap-3">
                   <CalendarCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                   <div>
-                    <p className="text-xs text-emerald-600">Perkiraan kembali:</p>
+                    <p className="text-xs text-emerald-600">Perkiraan tanggal kembali:</p>
                     <p className="text-sm font-bold text-emerald-700">
                       {new Date(form.perkiraan_kembali + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
                     </p>
                   </div>
                 </div>
               )}
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Jam Pengembalian Alat *</label>
+                <input type="time" value={form.jam_pengembalian} onChange={e => set('jam_pengembalian', e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Jam pasti alat akan dikembalikan ke CC pada tanggal perkiraan di atas
+                </p>
+              </div>
             </div>
 
             <div className="border-t border-slate-100 pt-4">
@@ -557,8 +593,10 @@ export default function PublikPinjamPage() {
                   ['Peminjam', form.nama_peminjam],
                   ...(form.no_telepon ? [['No. HP', form.no_telepon]] : []),
                   ['Tanggal', form.tanggal],
+                  ...(form.jam_peminjaman ? [['Jam Ambil', form.jam_peminjaman]] : []),
+                  ...(form.jam_acara ? [['Jam Acara', form.jam_acara]] : []),
                   ['Durasi', `${form.durasi_hari} hari`],
-                  ['Est. kembali', form.perkiraan_kembali],
+                  ['Est. kembali', `${form.perkiraan_kembali}${form.jam_pengembalian ? ' pukul ' + form.jam_pengembalian : ''}`],
                 ].map(([k, v]) => (
                   <div key={k} className="flex gap-2">
                     <span className="text-slate-400 w-24 flex-shrink-0">{k}</span>
