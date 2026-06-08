@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build output
+.next/
+out/
+
+# Env secrets
+.env.local
+.env.*.local
+
+# Vercel
+.vercel
+
+# Supabase CLI temp
+supabase/.temp/
+
+# Next.js
+*.tsbuildinfo
+next-env.d.ts
+
+# OS
+.DS_Store
+Thumbs.db
