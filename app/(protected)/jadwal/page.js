@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase'
 import {
   Calendar, Plus, X, Edit2, Trash2, Filter,
   Download, ChevronLeft, ChevronRight, Clock,
-  Camera, TableIcon, Star
+  Camera, TableIcon, Star, MessageCircle
 } from 'lucide-react'
 import { differenceInDays, parseISO, format, startOfMonth, endOfMonth,
          eachDayOfInterval, isSameDay, addMonths, subMonths } from 'date-fns'
@@ -29,6 +29,27 @@ const DOKT_ROLES = [
 
 const MONTHS_ID = ['Januari','Februari','Maret','April','Mei','Juni',
                    'Juli','Agustus','September','Oktober','November','Desember']
+
+const WA_GROUP = 'https://chat.whatsapp.com/KkX6kvMVc7QJWlCz9psnxh'
+
+function sendJadwalWA(row) {
+  const parts = ['📸 *Jadwal Dokumentasi CC*', '']
+  parts.push(`📌 *${row.nama_kegiatan || row.keterangan || 'Kegiatan'}*`)
+  if (row.tanggal)        parts.push(`📅 Tanggal: ${fmt(row.tanggal)}`)
+  if (row.waktu_kegiatan) parts.push(`🕐 Waktu: ${fmtTime(row.waktu_kegiatan)}`)
+  parts.push('')
+  parts.push('👥 *Penugasan:*')
+  if (row.cam1_operator)        parts.push(`  📷 Cam 1: ${row.cam1_operator}`)
+  if (row.cam2_operator)        parts.push(`  📷 Cam 2: ${row.cam2_operator}`)
+  if (row.cam_video_operator)   parts.push(`  🎬 Video: ${row.cam_video_operator}`)
+  if (row.live_report_operator) parts.push(`  📡 Live: ${row.live_report_operator}`)
+  if (row.catatan) { parts.push(''); parts.push(`📝 Catatan: ${row.catatan}`) }
+  parts.push('')
+  parts.push('Harap konfirmasi kehadiran ya! 🙏')
+  parts.push('')
+  parts.push(`— CC Documentation Team`)
+  window.open(`https://wa.me/?text=${encodeURIComponent(parts.join('\n'))}`, '_blank')
+}
 
 function dlStyle(deadline, status) {
   if (status === 'Selesai') return { bg: 'bg-slate-100', text: 'text-slate-500', label: 'Selesai' }
@@ -492,7 +513,7 @@ export default function JadwalPage() {
                       <th className="text-left px-4 py-3 font-semibold text-slate-600">🎬 Video</th>
                       <th className="text-left px-4 py-3 font-semibold text-slate-600">📡 Live</th>
                       <th className="text-left px-4 py-3 font-semibold text-slate-600">🔗 Peminjaman</th>
-                      {isAdmin && <th className="px-4 py-3 w-20 no-print"></th>}
+                      <th className="px-4 py-3 w-24 no-print"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -544,14 +565,21 @@ export default function JadwalPage() {
                               <span className="text-slate-300 text-xs">—</span>
                             )}
                           </td>
-                          {isAdmin && (
-                            <td className="px-4 py-3 no-print">
-                              <div className="flex items-center gap-1">
+                          <td className="px-4 py-3 no-print">
+                            <div className="flex items-center gap-1">
+                              {isAdmin && (
+                                <button onClick={() => sendJadwalWA(row)}
+                                  title="Kirim jadwal ke grup WA CC"
+                                  className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded">
+                                  <MessageCircle className="w-3.5 h-3.5"/>
+                                </button>
+                              )}
+                              {isAdmin && <>
                                 <button onClick={() => handleEdit(row)} className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded"><Edit2 className="w-3.5 h-3.5"/></button>
                                 <button onClick={() => handleDelete(row.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-3.5 h-3.5"/></button>
-                              </div>
-                            </td>
-                          )}
+                              </>}
+                            </div>
+                          </td>
                         </tr>
                       )
                     })}

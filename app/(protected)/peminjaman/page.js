@@ -829,6 +829,17 @@ export default function PeminjamanPage() {
                             </a>
                           </div>
                         )}
+                        {row.token && (
+                          <div>
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Token Pengembalian</p>
+                            <div className="flex items-center gap-2">
+                              <code className="text-base font-bold tracking-[0.25em] bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg">
+                                {row.token}
+                              </code>
+                              <span className="text-xs text-slate-400">Gunakan di /kembali</span>
+                            </div>
+                          </div>
+                        )}
                         {profile?.role === 'admin' && (
                           <div>
                             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Aksi Admin</p>

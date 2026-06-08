@@ -60,6 +60,8 @@ export default function PublikPinjamPage() {
   const [inventaris, setInventaris] = useState([])
   const [loadingInv, setLoadingInv] = useState(true)
   const [customDurasi, setCustomDurasi] = useState(false)
+  const [prevBorrowers, setPrevBorrowers] = useState([])
+  const [loadingPrev, setLoadingPrev] = useState(false)
 
   const [form, setForm] = useState({
     jenis_acara: '',
@@ -75,6 +77,30 @@ export default function PublikPinjamPage() {
     lampiran_bukti: null,
     foto_identitas: null,
   })
+
+  const handleJenisChange = async (j) => {
+    set('jenis_acara', j)
+    set('asal_organisasi', '')
+    setPrevBorrowers([])
+    if (j === 'Organisasi' || j === 'Eksternal') {
+      setLoadingPrev(true)
+      const { data } = await supabase
+        .from('peminjaman')
+        .select('asal_organisasi')
+        .eq('jenis_acara', j)
+        .not('asal_organisasi', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(200)
+      const seen = new Set()
+      const unique = []
+      ;(data || []).forEach(d => {
+        const k = (d.asal_organisasi || '').trim()
+        if (k && !seen.has(k)) { seen.add(k); unique.push(k) }
+      })
+      setPrevBorrowers(unique)
+      setLoadingPrev(false)
+    }
+  }
 
   const set = (key, val) => setForm(f => {
     const updated = { ...f, [key]: val }
@@ -251,7 +277,7 @@ export default function PublikPinjamPage() {
                   { j: 'Organisasi', icon: '🎯', desc: 'Ekskul / Organisasi' },
                   { j: 'Eksternal',  icon: '🌐', desc: 'Pribadi / Luar sekolah' },
                 ].map(({ j, icon, desc }) => (
-                  <button key={j} type="button" onClick={() => set('jenis_acara', j)}
+                  <button key={j} type="button" onClick={() => handleJenisChange(j)}
                     className={`p-3 rounded-xl border-2 text-left transition-all ${form.jenis_acara === j ? 'border-purple-500 bg-purple-50' : 'border-slate-200 hover:border-purple-300'}`}>
                     <div className="text-2xl mb-1">{icon}</div>
                     <p className={`text-sm font-semibold ${form.jenis_acara === j ? 'text-purple-700' : 'text-slate-700'}`}>{j}</p>
@@ -262,20 +288,48 @@ export default function PublikPinjamPage() {
             </div>
 
             {(isOrganisasi || form.jenis_acara === 'Eksternal') && (
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  {isOrganisasi ? 'Nama Organisasi / Ekskul *' : 'Instansi / Pihak *'}
-                </label>
-                <div className="relative">
-                  <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input value={form.asal_organisasi} onChange={e => set('asal_organisasi', e.target.value)}
-                    placeholder={isOrganisasi ? 'cth: OSIS SMA N 1 Solo / Ekskul Fotografi' : 'cth: Pribadi / PT. Contoh Indonesia'}
-                    className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
+              <div className="space-y-3">
+                {/* Previous borrowers dropdown */}
+                {loadingPrev ? (
+                  <p className="text-xs text-slate-400">Memuat riwayat peminjam...</p>
+                ) : prevBorrowers.length > 0 ? (
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                      Pernah Pinjam Sebelumnya?
+                    </label>
+                    <select
+                      defaultValue=""
+                      onChange={e => { if (e.target.value) set('asal_organisasi', e.target.value) }}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                    >
+                      <option value="">-- Baru / Belum pernah pinjam --</option>
+                      {prevBorrowers.map(name => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-slate-400 mt-1">Pilih dari riwayat, atau biarkan dan isi manual di bawah</p>
+                  </div>
+                ) : null}
+
+                {/* Manual input */}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    {prevBorrowers.length > 0
+                      ? (isOrganisasi ? 'Konfirmasi / Edit Nama Organisasi *' : 'Konfirmasi / Edit Instansi *')
+                      : (isOrganisasi ? 'Nama Organisasi / Ekskul *' : 'Instansi / Pihak *')
+                    }
+                  </label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input value={form.asal_organisasi} onChange={e => set('asal_organisasi', e.target.value)}
+                      placeholder={isOrganisasi ? 'cth: OSIS SMA N 1 Solo / Ekskul Fotografi' : 'cth: Pribadi / PT. Contoh Indonesia'}
+                      className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {isOrganisasi ? '🎯 Nama lengkap organisasi atau ekskul yang meminjam' : '🌐 Nama instansi, komunitas, atau "Pribadi" jika perorangan'}
+                  </p>
                 </div>
-                <p className="text-xs text-slate-400 mt-1">
-                  {isOrganisasi ? '🎯 Nama lengkap organisasi atau ekskul yang meminjam' : '🌐 Nama instansi, komunitas, atau "Pribadi" jika perorangan'}
-                </p>
               </div>
             )}
 

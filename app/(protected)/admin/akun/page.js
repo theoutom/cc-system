@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
-import { Users, Shield, User, X, Plus, Search } from 'lucide-react'
+import { Users, Shield, User, X, Plus, Search, Phone, Check } from 'lucide-react'
 
 export default function AkunPage() {
   const supabase = createClient()
@@ -13,6 +13,8 @@ export default function AkunPage() {
   const [inviteForm, setInviteForm] = useState({ email: '', nama: '', password: '', role: 'anggota' })
   const [submitting, setSubmitting] = useState(false)
   const [msg, setMsg] = useState('')
+  const [editNoWa, setEditNoWa] = useState(null)
+  const [noWaVal, setNoWaVal] = useState('')
 
   useEffect(() => { fetchData() }, [])
 
@@ -23,6 +25,13 @@ export default function AkunPage() {
     const { data: p } = await supabase.from('profiles').select('*').order('created_at')
     setProfiles(p || [])
     setLoading(false)
+  }
+
+  const handleSaveNoWa = async (id) => {
+    const cleaned = noWaVal.trim()
+    await supabase.from('profiles').update({ no_wa: cleaned || null }).eq('id', id)
+    setEditNoWa(null)
+    fetchData()
   }
 
   const handleRoleChange = async (id, role) => {
@@ -131,6 +140,33 @@ export default function AkunPage() {
                   <p className="text-xs text-slate-400 mt-0.5">
                     Bergabung: {new Date(p.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
+                  {editNoWa === p.id ? (
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <input
+                        autoFocus
+                        type="tel"
+                        value={noWaVal}
+                        onChange={e => setNoWaVal(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSaveNoWa(p.id); if (e.key === 'Escape') setEditNoWa(null) }}
+                        placeholder="cth: 08123456789"
+                        className="text-xs px-2 py-1 border border-green-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-400 w-36"
+                      />
+                      <button onClick={() => handleSaveNoWa(p.id)} className="p-1 text-green-600 hover:bg-green-50 rounded">
+                        <Check className="w-3.5 h-3.5"/>
+                      </button>
+                      <button onClick={() => setEditNoWa(null)} className="p-1 text-slate-400 hover:bg-slate-50 rounded">
+                        <X className="w-3.5 h-3.5"/>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setEditNoWa(p.id); setNoWaVal(p.no_wa || '') }}
+                      className="flex items-center gap-1 mt-1 text-xs text-slate-400 hover:text-green-600 transition-colors"
+                    >
+                      <Phone className="w-3 h-3"/>
+                      {p.no_wa ? <span className="text-green-600 font-medium">{p.no_wa}</span> : <span className="italic">Tambah no. WA</span>}
+                    </button>
+                  )}
                 </div>
                 <select
                   value={p.role}
