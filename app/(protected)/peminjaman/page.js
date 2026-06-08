@@ -5,7 +5,7 @@ import { InventarisGrid } from '@/components/InventarisGrid'
 import {
   Plus, X, Upload, Package, Phone, CalendarCheck,
   User, CreditCard, School, Search, ChevronDown, CheckCircle,
-  AlertCircle, Info, Lock, Clock, Building2
+  AlertCircle, Info, Lock, Clock, Building2, Mail
 } from 'lucide-react'
 
 const JENIS = ['Sekolah', 'Organisasi', 'Eksternal']
@@ -89,6 +89,7 @@ function PeminjamanForm({ onClose, onSuccess }) {
     jam_acara: '',
     nama_peminjam: '',
     no_telepon: '',
+    email_peminjam: '',
     selected_items: [],
     catatan_barang: '',
     durasi_hari: 1,
@@ -220,6 +221,7 @@ function PeminjamanForm({ onClose, onSuccess }) {
         jam_pengembalian: form.jam_pengembalian || null,
         nama_peminjam: form.nama_peminjam,
         no_telepon: needsPhone ? form.no_telepon : null,
+        email_peminjam: form.email_peminjam || null,
         detail_barang: detail,
         items_dipinjam: form.selected_items,
         durasi_hari: Number(form.durasi_hari),
@@ -398,6 +400,24 @@ function PeminjamanForm({ onClose, onSuccess }) {
               </div>
             )}
 
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                Email <span className="text-slate-400 font-normal">(opsional)</span>
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="email"
+                  inputMode="email"
+                  value={form.email_peminjam}
+                  onChange={e => set('email_peminjam', e.target.value)}
+                  placeholder="cth: nama@email.com"
+                  className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <p className="text-xs text-slate-400 mt-1">Untuk kirim notifikasi via email setelah approve/reject</p>
+            </div>
+
             {isSekolah && (
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
                 <p className="text-sm font-semibold text-blue-800 mb-1">ℹ️ Kegiatan Sekolah</p>
@@ -568,6 +588,7 @@ function PeminjamanForm({ onClose, onSuccess }) {
                   ...(form.asal_organisasi ? [['Dari', form.asal_organisasi]] : []),
                   ['Peminjam', form.nama_peminjam],
                   ...(needsPhone ? [['No. HP', form.no_telepon]] : []),
+                  ...(form.email_peminjam ? [['Email', form.email_peminjam]] : []),
                   ['Tanggal', form.tanggal],
                   ...(form.jam_peminjaman ? [['Jam Ambil', form.jam_peminjaman]] : []),
                   ...(form.jam_acara ? [['Jam Acara', form.jam_acara]] : []),
@@ -688,6 +709,69 @@ export default function PeminjamanPage() {
     } catch (e) {
       alert('Gagal menghapus: ' + e.message)
     }
+  }
+
+  const sendEmail = (row, type) => {
+    const to = row.email_peminjam || ''
+    const tgl = row.tanggal || '-'
+    const kembali = row.perkiraan_kembali
+      ? `${row.perkiraan_kembali}${row.jam_pengembalian ? ' pukul ' + row.jam_pengembalian.slice(0,5) : ''}`
+      : '-'
+
+    let subject, body
+    if (type === 'approved') {
+      subject = `[CC] Peminjaman Disetujui — ${row.nama_kegiatan}`
+      body = `Halo ${row.nama_peminjam},
+
+Peminjaman alat kamu telah DISETUJUI oleh admin CC.
+
+Detail peminjaman:
+- Kegiatan : ${row.nama_kegiatan}
+- Tanggal  : ${tgl}${row.jam_peminjaman ? ' pukul ' + row.jam_peminjaman.slice(0,5) : ''}
+- Alat     : ${row.detail_barang?.split('\n').filter(l => !l.startsWith('Catatan')).join(', ') || '-'}
+- Kembali  : ${kembali}
+${row.token ? `- Token pengembalian: ${row.token}` : ''}
+
+Harap ambil alat sesuai jadwal dan kembalikan tepat waktu.
+Simpan token pengembalian di atas untuk proses pengembalian alat.
+
+Salam,
+Tim CC`
+    } else if (type === 'rejected') {
+      subject = `[CC] Peminjaman Ditolak — ${row.nama_kegiatan}`
+      body = `Halo ${row.nama_peminjam},
+
+Mohon maaf, peminjaman alat kamu DITOLAK oleh admin CC.
+
+Detail peminjaman:
+- Kegiatan : ${row.nama_kegiatan}
+- Tanggal  : ${tgl}
+- Alat     : ${row.detail_barang?.split('\n').filter(l => !l.startsWith('Catatan')).join(', ') || '-'}
+
+Jika ada pertanyaan, silakan hubungi admin CC secara langsung.
+
+Salam,
+Tim CC`
+    } else if (type === 'reminder') {
+      subject = `[CC] Pengingat Pengembalian Alat — ${row.nama_kegiatan}`
+      body = `Halo ${row.nama_peminjam},
+
+Ini adalah pengingat bahwa alat yang dipinjam harus dikembalikan pada:
+${kembali}
+
+Detail peminjaman:
+- Kegiatan : ${row.nama_kegiatan}
+- Alat     : ${row.detail_barang?.split('\n').filter(l => !l.startsWith('Catatan')).join(', ') || '-'}
+${row.token ? `- Token pengembalian: ${row.token}` : ''}
+
+Harap kembalikan tepat waktu untuk menghindari denda.
+
+Salam,
+Tim CC`
+    }
+
+    const mailto = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.open(mailto, '_blank')
   }
 
   const getOverdueInfo = (row) => {
@@ -905,10 +989,38 @@ export default function PeminjamanPage() {
                             <p className="text-sm text-slate-700">🏢 {row.asal_organisasi}</p>
                           </div>
                         )}
-                        {row.no_telepon && (
+                        {(row.no_telepon || row.email_peminjam) && (
                           <div>
                             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Kontak</p>
-                            <p className="text-sm text-slate-700">📱 {row.no_telepon}</p>
+                            {row.no_telepon && <p className="text-sm text-slate-700">📱 {row.no_telepon}</p>}
+                            {row.email_peminjam && (
+                              <p className="text-sm text-slate-700 mt-0.5">📧 {row.email_peminjam}</p>
+                            )}
+                          </div>
+                        )}
+                        {row.email_peminjam && profile?.role === 'admin' && (
+                          <div>
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Notifikasi Email</p>
+                            <div className="flex flex-wrap gap-2">
+                              {row.status === 'approved' && (
+                                <button onClick={() => sendEmail(row, 'approved')}
+                                  className="flex items-center gap-1.5 text-xs bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                                  <Mail className="w-3.5 h-3.5" /> Email Persetujuan
+                                </button>
+                              )}
+                              {row.status === 'rejected' && (
+                                <button onClick={() => sendEmail(row, 'rejected')}
+                                  className="flex items-center gap-1.5 text-xs bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                                  <Mail className="w-3.5 h-3.5" /> Email Penolakan
+                                </button>
+                              )}
+                              {['approved', 'active'].includes(row.status) && (
+                                <button onClick={() => sendEmail(row, 'reminder')}
+                                  className="flex items-center gap-1.5 text-xs bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                                  <Mail className="w-3.5 h-3.5" /> Email Pengingat
+                                </button>
+                              )}
+                            </div>
                           </div>
                         )}
                         {(row.jam_peminjaman || row.jam_acara || row.jam_pengembalian) && (
