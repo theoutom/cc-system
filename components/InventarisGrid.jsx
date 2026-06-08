@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { X, CheckCircle, Lock, Camera, Layers, Tag, Package } from 'lucide-react'
+import { X, CheckCircle, Lock, Camera, Layers, Tag, Package, Wrench } from 'lucide-react'
 
 const KATEGORI_ICON = {
   'Kamera':   <Camera className="w-5 h-5" />,
@@ -39,7 +39,7 @@ export function groupItems(items) {
 }
 
 function UnitPickerPopup({ group, selectedIds, onToggle, onClose }) {
-  const availableCount = group.units.filter(u => u.status === 'Tersedia').length
+  const availableCount = group.units.filter(u => u.status === 'Tersedia' && !u.in_maintenance).length
   const selectedInGroup = group.units.filter(u => selectedIds.includes(u.id))
 
   return (
@@ -74,31 +74,38 @@ function UnitPickerPopup({ group, selectedIds, onToggle, onClose }) {
 
         <div className="px-5 py-4 space-y-2 max-h-72 overflow-y-auto">
           {group.units.map(unit => {
-            const isBusy     = unit.status === 'Dipinjam'
-            const isSelected = selectedIds.includes(unit.id)
-            const info       = unit._peminjamanAktif
-            const unitNum    = unit.nama_alat.match(/#?(\d+)$/)?.[1]
+            const isBusy       = unit.status === 'Dipinjam'
+            const isMaintenance = !!unit.in_maintenance
+            const isDisabled   = isBusy || isMaintenance
+            const isSelected   = selectedIds.includes(unit.id)
+            const info         = unit._peminjamanAktif
+            const unitNum      = unit.nama_alat.match(/#?(\d+)$/)?.[1]
             return (
               <button
                 key={unit.id}
                 type="button"
-                disabled={isBusy}
-                onClick={() => !isBusy && onToggle(unit.id)}
+                disabled={isDisabled}
+                onClick={() => !isDisabled && onToggle(unit.id)}
                 className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
-                  isBusy
-                    ? 'border-slate-100 bg-slate-50 cursor-not-allowed opacity-75'
-                    : isSelected
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/30'
+                  isMaintenance
+                    ? 'border-orange-100 bg-orange-50 cursor-not-allowed opacity-75'
+                    : isBusy
+                      ? 'border-slate-100 bg-slate-50 cursor-not-allowed opacity-75'
+                      : isSelected
+                        ? 'border-purple-500 bg-purple-50'
+                        : 'border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/30'
                 }`}
               >
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                  isBusy ? 'bg-red-100 text-red-400' : isSelected ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600'
+                  isMaintenance ? 'bg-orange-100 text-orange-400'
+                  : isBusy     ? 'bg-red-100 text-red-400'
+                  : isSelected ? 'bg-purple-600 text-white'
+                               : 'bg-slate-100 text-slate-600'
                 }`}>
                   {unitNum || '?'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${isBusy ? 'text-slate-400' : isSelected ? 'text-purple-800' : 'text-slate-700'}`}>
+                  <p className={`text-sm font-semibold ${isDisabled ? 'text-slate-400' : isSelected ? 'text-purple-800' : 'text-slate-700'}`}>
                     Unit #{unitNum}
                   </p>
                   <span className={`inline-block text-xs px-1.5 py-0.5 rounded-md font-medium mt-0.5 ${
@@ -113,7 +120,10 @@ function UnitPickerPopup({ group, selectedIds, onToggle, onClose }) {
                   {unit.catatan && (
                     <p className="text-xs text-slate-400 mt-0.5">📝 {unit.catatan}</p>
                   )}
-                  {isBusy && info && (
+                  {isMaintenance && (
+                    <p className="text-xs text-orange-500 font-medium mt-0.5">🔧 Maintenance</p>
+                  )}
+                  {!isMaintenance && isBusy && info && (
                     <div className="mt-1">
                       <p className="text-xs text-red-400 font-medium">🔒 {info.nama_kegiatan}</p>
                       {info.perkiraan_kembali && (
@@ -123,7 +133,7 @@ function UnitPickerPopup({ group, selectedIds, onToggle, onClose }) {
                       )}
                     </div>
                   )}
-                  {isBusy && !info && (
+                  {!isMaintenance && isBusy && !info && (
                     <p className="text-xs text-red-400 font-medium mt-0.5">🔒 Sedang dipinjam</p>
                   )}
                 </div>
@@ -196,22 +206,26 @@ export function InventarisGrid({ inventaris, selectedIds, onToggle }) {
                 <div className="grid grid-cols-2 gap-2">
                   {cardItems.map(card => {
                     if (card.type === 'single') {
-                      const item       = card.item
-                      const isSelected = selectedIds.includes(item.id)
-                      const isBusy     = item.status === 'Dipinjam'
-                      const info       = item._peminjamanAktif
+                      const item         = card.item
+                      const isSelected   = selectedIds.includes(item.id)
+                      const isBusy       = item.status === 'Dipinjam'
+                      const isMaintenance = !!item.in_maintenance
+                      const isDisabled   = isBusy || isMaintenance
+                      const info         = item._peminjamanAktif
                       return (
                         <button
                           key={item.id}
                           type="button"
-                          disabled={isBusy}
-                          onClick={() => !isBusy && onToggle(item.id)}
+                          disabled={isDisabled}
+                          onClick={() => !isDisabled && onToggle(item.id)}
                           className={`relative text-left p-3 rounded-xl border-2 transition-all ${
-                            isBusy
-                              ? 'border-slate-200 bg-slate-50 opacity-80 cursor-not-allowed'
-                              : isSelected
-                                ? 'border-purple-500 bg-purple-50 shadow-sm'
-                                : 'border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/30'
+                            isMaintenance
+                              ? 'border-orange-200 bg-orange-50 opacity-75 cursor-not-allowed'
+                              : isBusy
+                                ? 'border-slate-200 bg-slate-50 opacity-80 cursor-not-allowed'
+                                : isSelected
+                                  ? 'border-purple-500 bg-purple-50 shadow-sm'
+                                  : 'border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/30'
                           }`}
                         >
                           {isSelected && (
@@ -219,13 +233,18 @@ export function InventarisGrid({ inventaris, selectedIds, onToggle }) {
                               <CheckCircle className="w-3.5 h-3.5 text-white" />
                             </div>
                           )}
-                          {isBusy && (
+                          {isMaintenance && (
+                            <div className="absolute top-2 right-2 w-5 h-5 bg-orange-400 rounded-full flex items-center justify-center">
+                              <Wrench className="w-3 h-3 text-white" />
+                            </div>
+                          )}
+                          {!isMaintenance && isBusy && (
                             <div className="absolute top-2 right-2 w-5 h-5 bg-red-400 rounded-full flex items-center justify-center">
                               <Lock className="w-3 h-3 text-white" />
                             </div>
                           )}
                           <p className={`text-sm font-semibold leading-tight pr-6 ${
-                            isBusy ? 'text-slate-400' : isSelected ? 'text-purple-800' : 'text-slate-700'
+                            isDisabled ? 'text-slate-400' : isSelected ? 'text-purple-800' : 'text-slate-700'
                           }`}>
                             {item.nama_alat}
                           </p>
@@ -241,7 +260,10 @@ export function InventarisGrid({ inventaris, selectedIds, onToggle }) {
                           {item.catatan && (
                             <p className="text-xs text-slate-400 mt-1 leading-tight">📝 {item.catatan}</p>
                           )}
-                          {isBusy && info && (
+                          {isMaintenance && (
+                            <p className="text-xs text-orange-500 font-semibold mt-1">🔧 Maintenance</p>
+                          )}
+                          {!isMaintenance && isBusy && info && (
                             <div className="mt-2 space-y-0.5">
                               <p className="text-xs text-red-500 font-semibold">🔒 Sedang Dipinjam</p>
                               <p className="text-xs text-slate-400 leading-tight">📌 {info.nama_kegiatan}</p>
@@ -257,7 +279,7 @@ export function InventarisGrid({ inventaris, selectedIds, onToggle }) {
                     }
 
                     const { prefix, units } = card
-                    const availableUnits    = units.filter(u => u.status === 'Tersedia')
+                    const availableUnits    = units.filter(u => u.status === 'Tersedia' && !u.in_maintenance)
                     const selectedUnits     = units.filter(u => selectedIds.includes(u.id))
                     const allBusy           = availableUnits.length === 0
                     const hasSelected       = selectedUnits.length > 0
@@ -292,14 +314,18 @@ export function InventarisGrid({ inventaris, selectedIds, onToggle }) {
                         </p>
                         <div className="flex gap-1 mt-2 flex-wrap">
                           {units.map(u => {
-                            const isSel  = selectedIds.includes(u.id)
-                            const isBusy = u.status === 'Dipinjam'
-                            const num    = u.nama_alat.match(/#?(\d+)$/)?.[1]
+                            const isSel    = selectedIds.includes(u.id)
+                            const isBusy   = u.status === 'Dipinjam'
+                            const isMaint  = !!u.in_maintenance
+                            const num      = u.nama_alat.match(/#?(\d+)$/)?.[1]
                             return (
                               <span
                                 key={u.id}
                                 className={`inline-flex items-center justify-center w-6 h-6 rounded-lg text-xs font-bold ${
-                                  isBusy ? 'bg-red-100 text-red-400' : isSel ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-500'
+                                  isMaint  ? 'bg-orange-100 text-orange-400'
+                                  : isBusy ? 'bg-red-100 text-red-400'
+                                  : isSel  ? 'bg-purple-600 text-white'
+                                           : 'bg-slate-100 text-slate-500'
                                 }`}
                               >
                                 {num}
@@ -309,7 +335,7 @@ export function InventarisGrid({ inventaris, selectedIds, onToggle }) {
                         </div>
                         <p className={`text-xs mt-1.5 font-medium ${allBusy ? 'text-red-400' : 'text-slate-400'}`}>
                           {allBusy
-                            ? '🔒 Semua sedang dipinjam'
+                            ? '🔒 Tidak tersedia'
                             : hasSelected
                               ? `${selectedUnits.length} dipilih · ${availableUnits.length} tersedia`
                               : `${availableUnits.length} dari ${units.length} tersedia · ketuk untuk pilih`}

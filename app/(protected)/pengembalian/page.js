@@ -29,7 +29,7 @@ export default function PengembalianPage() {
         .in('status', ['approved', 'active']).order('tanggal', { ascending: true }),
       supabase.from('pengembalian').select('*, peminjaman(*)')
         .order('created_at', { ascending: false }).limit(20),
-      supabase.from('inventaris').select('id, nama_alat, kondisi'),
+      supabase.from('inventaris').select('id, nama_alat, kondisi, denda_per_hari'),
     ])
     setAktif(active || [])
     setRiwayat(history || [])
@@ -264,15 +264,27 @@ export default function PengembalianPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-                {overdue?.isOver && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-red-700">{overdue.label}</p>
-                      <p className="text-xs text-red-500 mt-0.5">Catat pengembalian ini dan selesaikan administrasi keterlambatan.</p>
+                {overdue?.isOver && (() => {
+                  const totalDenda = (selected.items_dipinjam || []).reduce((sum, id) => {
+                    const item = inventaris.find(i => i.id === id)
+                    return sum + (item?.denda_per_hari || 0)
+                  }, 0)
+                  const fine = totalDenda * overdue.days
+                  return (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                        <p className="text-sm font-bold text-red-700">{overdue.label}</p>
+                      </div>
+                      {fine > 0 && (
+                        <p className="text-sm font-semibold text-red-700 pl-6">
+                          Estimasi denda: <span className="text-red-600">Rp{fine.toLocaleString('id-ID')}</span>
+                        </p>
+                      )}
+                      <p className="text-xs text-red-400 pl-6">Catat pengembalian dan selesaikan administrasi keterlambatan.</p>
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
 
                 <div className="bg-slate-50 rounded-lg p-3 text-sm flex items-center gap-3">
                   <div className="flex-1">

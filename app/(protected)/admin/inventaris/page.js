@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
-import { Box, Plus, X, Edit2, Trash2, Search, Lock, Info } from 'lucide-react'
+import { Box, Plus, X, Edit2, Trash2, Search, Lock, Wrench } from 'lucide-react'
 
 const KATEGORI = ['Kamera', 'Lensa', 'Aksesori', 'Lighting', 'Audio', 'Lainnya']
 const KONDISI = ['Baik', 'Rusak Ringan', 'Rusak Berat']
@@ -16,7 +16,7 @@ export default function InventarisPage() {
   const [editRow, setEditRow] = useState(null)
   const [search, setSearch] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [form, setForm] = useState({ nama_alat: '', kategori: 'Aksesori', kondisi: 'Baik', status: 'Tersedia', catatan: '' })
+  const [form, setForm] = useState({ nama_alat: '', kategori: 'Aksesori', kondisi: 'Baik', status: 'Tersedia', catatan: '', denda_per_hari: 0, in_maintenance: false })
 
   useEffect(() => { fetchData() }, [])
 
@@ -68,7 +68,7 @@ export default function InventarisPage() {
         ? await supabase.from('inventaris').update(form).eq('id', editRow.id)
         : await supabase.from('inventaris').insert(form)
       if (error) throw error
-      setForm({ nama_alat: '', kategori: 'Aksesori', kondisi: 'Baik', status: 'Tersedia', catatan: '' })
+      setForm({ nama_alat: '', kategori: 'Aksesori', kondisi: 'Baik', status: 'Tersedia', catatan: '', denda_per_hari: 0, in_maintenance: false })
       setShowForm(false)
       setEditRow(null)
       fetchData()
@@ -79,9 +79,19 @@ export default function InventarisPage() {
     }
   }
 
+  const handleToggleMaintenance = async (id, current) => {
+    try {
+      const { error } = await supabase.from('inventaris').update({ in_maintenance: !current }).eq('id', id)
+      if (error) throw error
+      fetchData()
+    } catch (e) {
+      alert('Gagal mengubah status maintenance: ' + e.message)
+    }
+  }
+
   const handleEdit = (row) => {
     setEditRow(row)
-    setForm({ nama_alat: row.nama_alat, kategori: row.kategori || 'Aksesori', kondisi: row.kondisi || 'Baik', status: row.status || 'Tersedia', catatan: row.catatan || '' })
+    setForm({ nama_alat: row.nama_alat, kategori: row.kategori || 'Aksesori', kondisi: row.kondisi || 'Baik', status: row.status || 'Tersedia', catatan: row.catatan || '', denda_per_hari: row.denda_per_hari || 0, in_maintenance: row.in_maintenance || false })
     setShowForm(true)
   }
 
@@ -147,9 +157,9 @@ export default function InventarisPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-4 gap-4 mb-6">
         <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-green-700">{data.filter(d => getRealStatus(d) === 'Tersedia').length}</p>
+          <p className="text-2xl font-bold text-green-700">{data.filter(d => !d.in_maintenance && getRealStatus(d) === 'Tersedia').length}</p>
           <p className="text-xs text-green-600 mt-1 font-medium">Tersedia</p>
         </div>
         <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-center">
@@ -159,6 +169,10 @@ export default function InventarisPage() {
         <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-center">
           <p className="text-2xl font-bold text-amber-600">{data.filter(d => getRealStatus(d) === 'Pending').length}</p>
           <p className="text-xs text-amber-500 mt-1 font-medium">Pending Approval</p>
+        </div>
+        <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-orange-600">{data.filter(d => d.in_maintenance).length}</p>
+          <p className="text-xs text-orange-500 mt-1 font-medium">Maintenance</p>
         </div>
       </div>
 
@@ -190,19 +204,29 @@ export default function InventarisPage() {
                   const shownLoan = activeLoan || pendingLoan
 
                   return (
-                    <div key={item.id} className={`px-5 py-3 ${shownLoan ? 'bg-slate-50/50' : ''}`}>
+                    <div key={item.id} className={`px-5 py-3 ${item.in_maintenance ? 'bg-orange-50/40' : shownLoan ? 'bg-slate-50/50' : ''}`}>
                       <div className="flex items-center gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-sm font-medium text-slate-800">{item.nama_alat}</p>
                             <span className={`text-xs font-medium ${kondisiColor[item.kondisi]}`}>{item.kondisi}</span>
+                            {item.in_maintenance && (
+                              <span className="text-xs font-semibold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-md">🔧 Maintenance</span>
+                            )}
+                            {item.denda_per_hari > 0 && (
+                              <span className="text-xs text-slate-400">Denda: Rp{item.denda_per_hari.toLocaleString('id-ID')}/hari</span>
+                            )}
                           </div>
                           {item.catatan && <p className="text-xs text-slate-400 mt-0.5">📝 {item.catatan}</p>}
                         </div>
 
-                        {/* Status badge — real-time dari peminjaman */}
+                        {/* Status badge */}
                         <div className="flex-shrink-0">
-                          {realStatus === 'Dipinjam' ? (
+                          {item.in_maintenance ? (
+                            <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-semibold bg-orange-100 text-orange-700">
+                              <Wrench className="w-3 h-3" /> Maintenance
+                            </span>
+                          ) : realStatus === 'Dipinjam' ? (
                             <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-semibold bg-red-100 text-red-700">
                               <Lock className="w-3 h-3" /> Dipinjam
                             </span>
@@ -219,6 +243,11 @@ export default function InventarisPage() {
                         </div>
 
                         <div className="flex items-center gap-1 flex-shrink-0">
+                          <button onClick={() => handleToggleMaintenance(item.id, item.in_maintenance)}
+                            title={item.in_maintenance ? 'Selesai maintenance' : 'Set maintenance'}
+                            className={`p-1.5 rounded transition-colors ${item.in_maintenance ? 'text-orange-500 bg-orange-100 hover:bg-orange-200' : 'text-slate-400 hover:text-orange-500 hover:bg-orange-50'}`}>
+                            <Wrench className="w-3.5 h-3.5" />
+                          </button>
                           <button onClick={() => handleEdit(item)} className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded">
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -298,6 +327,30 @@ export default function InventarisPage() {
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Denda Keterlambatan</label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-500">Rp</span>
+                  <input type="number" min="0" step="1000"
+                    value={form.denda_per_hari}
+                    onChange={e => setForm(f => ({ ...f, denda_per_hari: parseInt(e.target.value) || 0 }))}
+                    placeholder="0"
+                    className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-slate-500">/ hari</span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">Isi 0 jika tidak ada denda</p>
+              </div>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <div className={`relative w-10 h-6 rounded-full transition-colors ${form.in_maintenance ? 'bg-orange-500' : 'bg-slate-200'}`}
+                  onClick={() => setForm(f => ({ ...f, in_maintenance: !f.in_maintenance }))}>
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${form.in_maintenance ? 'left-5' : 'left-1'}`} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Mode Maintenance</p>
+                  <p className="text-xs text-slate-400">Alat tidak bisa dipinjam saat maintenance</p>
+                </div>
+              </label>
             </div>
             <div className="px-6 py-4 border-t border-slate-100 flex gap-3 justify-end">
               <button onClick={() => { setShowForm(false); setEditRow(null) }} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Batal</button>
