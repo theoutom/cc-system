@@ -63,16 +63,20 @@ export default function InventarisPage() {
   const handleSubmit = async () => {
     if (!form.nama_alat) { alert('Nama alat wajib diisi!'); return }
     setSubmitting(true)
-    if (editRow) {
-      await supabase.from('inventaris').update(form).eq('id', editRow.id)
-    } else {
-      await supabase.from('inventaris').insert(form)
+    try {
+      const { error } = editRow
+        ? await supabase.from('inventaris').update(form).eq('id', editRow.id)
+        : await supabase.from('inventaris').insert(form)
+      if (error) throw error
+      setForm({ nama_alat: '', kategori: 'Aksesori', kondisi: 'Baik', status: 'Tersedia', catatan: '' })
+      setShowForm(false)
+      setEditRow(null)
+      fetchData()
+    } catch (e) {
+      alert('Gagal menyimpan: ' + e.message)
+    } finally {
+      setSubmitting(false)
     }
-    setForm({ nama_alat: '', kategori: 'Aksesori', kondisi: 'Baik', status: 'Tersedia', catatan: '' })
-    setShowForm(false)
-    setEditRow(null)
-    setSubmitting(false)
-    fetchData()
   }
 
   const handleEdit = (row) => {
@@ -83,14 +87,24 @@ export default function InventarisPage() {
 
   const handleDelete = async (id) => {
     if (!confirm('Hapus alat ini dari inventaris?')) return
-    await supabase.from('inventaris').delete().eq('id', id)
-    fetchData()
+    try {
+      const { error } = await supabase.from('inventaris').delete().eq('id', id)
+      if (error) throw error
+      fetchData()
+    } catch (e) {
+      alert('Gagal menghapus: ' + e.message)
+    }
   }
 
   const handleToggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Tersedia' ? 'Dipinjam' : 'Tersedia'
-    await supabase.from('inventaris').update({ status: newStatus }).eq('id', id)
-    fetchData()
+    try {
+      const { error } = await supabase.from('inventaris').update({ status: newStatus }).eq('id', id)
+      if (error) throw error
+      fetchData()
+    } catch (e) {
+      alert('Gagal mengubah status: ' + e.message)
+    }
   }
 
   const filtered = data.filter(d =>

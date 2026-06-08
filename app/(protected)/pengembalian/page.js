@@ -56,22 +56,22 @@ export default function PengembalianPage() {
     }
     setSubmitting(true)
 
-    await supabase.from('pengembalian').insert({
-      peminjaman_id: selected.id,
-      nama_pengembali: form.nama_pengembali,
-      tanggal_pengembalian: form.tanggal_pengembalian,
-      jam_pengembalian: form.jam_pengembalian,
-      detail_barang_kembali: form.detail_barang_kembali,
-    })
+    try {
+      const { error: errInsert } = await supabase.from('pengembalian').insert({
+        peminjaman_id: selected.id,
+        nama_pengembali: form.nama_pengembali,
+        tanggal_pengembalian: form.tanggal_pengembalian,
+        jam_pengembalian: form.jam_pengembalian,
+        detail_barang_kembali: form.detail_barang_kembali,
+      })
+      if (errInsert) throw errInsert
 
-    await supabase.from('peminjaman').update({ status: 'returned' }).eq('id', selected.id)
-
-    // Kembalikan status alat ke 'Tersedia' otomatis
-    if (Array.isArray(selected.items_dipinjam) && selected.items_dipinjam.length > 0) {
-      await supabase
-        .from('inventaris')
-        .update({ status: 'Tersedia' })
-        .in('id', selected.items_dipinjam)
+      const { error: errUpdate } = await supabase.from('peminjaman').update({ status: 'returned' }).eq('id', selected.id)
+      if (errUpdate) throw errUpdate
+    } catch (e) {
+      alert('Gagal mencatat pengembalian: ' + e.message)
+      setSubmitting(false)
+      return
     }
 
     setShowForm(false)

@@ -1,11 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
+import { InventarisGrid } from '@/components/InventarisGrid'
 import {
   Plus, X, Upload, Package, Phone, CalendarCheck,
   User, CreditCard, School, Search, ChevronDown, CheckCircle,
-  AlertCircle, Camera, Layers, Battery, MemoryStick, Tag, Info,
-  Lock, Clock, Building2
+  AlertCircle, Info, Lock, Clock, Building2
 } from 'lucide-react'
 
 const JENIS = ['Sekolah', 'Organisasi', 'Eksternal']
@@ -27,12 +27,7 @@ const DURASI_OPTIONS = [
   { label: 'Custom',   value: 0  },
 ]
 
-// Ikon per kategori alat
-const KATEGORI_ICON = {
-  'Kamera':   <Camera className="w-5 h-5" />,
-  'Lensa':    <Layers className="w-5 h-5" />,
-  'Aksesori': <Tag className="w-5 h-5" />,
-}
+const MAX_FILE_BYTES = 5 * 1024 * 1024
 
 function addDays(dateStr, days) {
   if (!dateStr || !days) return ''
@@ -75,404 +70,7 @@ function StepIndicator({ current, steps }) {
   )
 }
 
-// ─── Helper: deteksi prefix nama alat (sebelum #N atau angka di akhir) ────
-// "SD Card #1" → "SD Card"
-// "Baterai LP-E17 (Ungu) #1" → "Baterai LP-E17 (Ungu)"
-// "Canon EOS M6 Mark II" → null (tidak ada unit)
-function getPrefix(nama) {
-  // Pola: diakhiri dengan " #N" atau " N" dimana N adalah angka
-  const m = nama.match(/^(.+?)\s+#?\d+$/)
-  return m ? m[1].trim() : null
-}
-
-// Kelompokkan items: yang punya prefix sama → jadi 1 grup, sisanya standalone
-function groupItems(items) {
-  const prefixMap = {}   // prefix → [items]
-  const standalone = []  // items tanpa pasangan
-
-  // Hitung dulu berapa item per prefix
-  const prefixCount = {}
-  items.forEach(item => {
-    const p = getPrefix(item.nama_alat)
-    if (p) prefixCount[p] = (prefixCount[p] || 0) + 1
-  })
-
-  items.forEach(item => {
-    const p = getPrefix(item.nama_alat)
-    // Hanya grup jika ada ≥2 item dengan prefix sama
-    if (p && prefixCount[p] >= 2) {
-      if (!prefixMap[p]) prefixMap[p] = []
-      prefixMap[p].push(item)
-    } else {
-      standalone.push(item)
-    }
-  })
-
-  // Gabungkan: standalone item + grup
-  // Return array of: { type:'single', item } | { type:'group', prefix, units:[item] }
-  const result = []
-  standalone.forEach(item => result.push({ type: 'single', item }))
-  Object.entries(prefixMap).forEach(([prefix, units]) =>
-    result.push({ type: 'group', prefix, units })
-  )
-  return result
-}
-
-// ─── Unit Picker Popup (muncul saat grup diklik) ────────────
-function UnitPickerPopup({ group, selectedIds, onToggle, onClose }) {
-  const availableCount = group.units.filter(u => u.status === 'Tersedia').length
-  const selectedInGroup = group.units.filter(u => selectedIds.includes(u.id))
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4"
-      onClick={e => e.target === e.currentTarget && onClose()}>
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="px-5 pt-5 pb-4 border-b border-slate-100">
-          <div className="flex items-start justify-between">
-            <div>
-              <h4 className="font-bold text-slate-900 text-base">{group.prefix}</h4>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {availableCount} dari {group.units.length} unit tersedia
-              </p>
-            </div>
-            <button onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          {/* Progress bar tersedia */}
-          <div className="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-purple-500 rounded-full transition-all"
-              style={{ width: `${(availableCount / group.units.length) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Unit list */}
-        <div className="px-5 py-4 space-y-2 max-h-72 overflow-y-auto">
-          {group.units.map(unit => {
-            const isBusy     = unit.status === 'Dipinjam'
-            const isSelected = selectedIds.includes(unit.id)
-            const info       = unit._peminjamanAktif
-
-            // Nomor unit — ambil angka di akhir nama
-            const unitNum = unit.nama_alat.match(/#?(\d+)$/)?.[1]
-
-            return (
-              <button
-                key={unit.id}
-                type="button"
-                disabled={isBusy}
-                onClick={() => !isBusy && onToggle(unit.id)}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
-                  isBusy
-                    ? 'border-slate-100 bg-slate-50 cursor-not-allowed opacity-75'
-                    : isSelected
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/30'
-                }`}
-              >
-                {/* Nomor unit */}
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                  isBusy
-                    ? 'bg-red-100 text-red-400'
-                    : isSelected
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-slate-100 text-slate-600'
-                }`}>
-                  {unitNum || '?'}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${
-                    isBusy ? 'text-slate-400' : isSelected ? 'text-purple-800' : 'text-slate-700'
-                  }`}>
-                    Unit #{unitNum}
-                  </p>
-
-                  {/* Kondisi */}
-                  <span className={`inline-block text-xs px-1.5 py-0.5 rounded-md font-medium mt-0.5 ${
-                    unit.kondisi === 'Baik'
-                      ? 'bg-green-100 text-green-700'
-                      : unit.kondisi === 'Rusak Ringan'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-red-100 text-red-600'
-                  }`}>
-                    {unit.kondisi}
-                  </span>
-
-                  {/* Info dipinjam */}
-                  {isBusy && info && (
-                    <div className="mt-1">
-                      <p className="text-xs text-red-400 font-medium">🔒 Dipinjam: {info.nama_kegiatan}</p>
-                      {info.perkiraan_kembali && (
-                        <p className="text-xs text-slate-400">
-                          Kembali: {new Date(info.perkiraan_kembali + 'T00:00:00').toLocaleDateString('id-ID', {
-                            day: 'numeric', month: 'short', year: 'numeric'
-                          })}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {isBusy && !info && (
-                    <p className="text-xs text-red-400 font-medium mt-0.5">🔒 Sedang dipinjam</p>
-                  )}
-                </div>
-
-                {/* Checkmark */}
-                {isSelected && (
-                  <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0" />
-                )}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Footer */}
-        <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-          <p className="text-xs text-slate-500">
-            {selectedInGroup.length > 0
-              ? <span className="font-semibold text-purple-700">{selectedInGroup.length} unit dipilih</span>
-              : 'Belum ada unit dipilih'
-            }
-          </p>
-          <button onClick={onClose}
-            className="px-4 py-1.5 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-700 transition-colors">
-            Selesai
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Grid Pemilihan Alat ────────────────────────────────────
-function InventarisGrid({ inventaris, selectedIds, onToggle }) {
-  const [filterKategori, setFilterKategori] = useState('Semua')
-  const [openGroup, setOpenGroup] = useState(null)   // prefix string yang popup-nya terbuka
-
-  const kategoris = ['Semua', ...new Set(inventaris.map(i => i.kategori))]
-
-  const filtered = inventaris.filter(item =>
-    filterKategori === 'Semua' || item.kategori === filterKategori
-  )
-
-  // Kelompokkan per kategori, lalu tiap kategori di-group lagi
-  const byKategori = filtered.reduce((acc, item) => {
-    const k = item.kategori || 'Lainnya'
-    if (!acc[k]) acc[k] = []
-    acc[k].push(item)
-    return acc
-  }, {})
-
-  return (
-    <>
-      <div>
-        {/* Filter tab kategori */}
-        <div className="flex gap-1.5 flex-wrap mb-4">
-          {kategoris.map(k => (
-            <button key={k} type="button" onClick={() => setFilterKategori(k)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                filterKategori === k ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}>
-              {k}
-            </button>
-          ))}
-        </div>
-
-        {/* Grid alat per kategori */}
-        <div className="space-y-5">
-          {Object.entries(byKategori).map(([kategori, items]) => {
-            const cardItems = groupItems(items)
-
-            return (
-              <div key={kategori}>
-                <div className="flex items-center gap-1.5 mb-2.5">
-                  <span className="text-slate-400">{KATEGORI_ICON[kategori] || <Tag className="w-4 h-4" />}</span>
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{kategori}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  {cardItems.map(card => {
-
-                    // ── SINGLE item card ──
-                    if (card.type === 'single') {
-                      const item       = card.item
-                      const isSelected = selectedIds.includes(item.id)
-                      const isBusy     = item.status === 'Dipinjam'
-                      const info       = item._peminjamanAktif
-
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => !isBusy && onToggle(item.id)}
-                          className={`relative text-left p-3 rounded-xl border-2 transition-all ${
-                            isBusy
-                              ? 'border-slate-200 bg-slate-50 opacity-80 cursor-not-allowed'
-                              : isSelected
-                                ? 'border-purple-500 bg-purple-50 shadow-sm'
-                                : 'border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/30'
-                          }`}
-                        >
-                          {isSelected && (
-                            <div className="absolute top-2 right-2 w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
-                              <CheckCircle className="w-3.5 h-3.5 text-white" />
-                            </div>
-                          )}
-                          {isBusy && (
-                            <div className="absolute top-2 right-2 w-5 h-5 bg-red-400 rounded-full flex items-center justify-center">
-                              <Lock className="w-3 h-3 text-white" />
-                            </div>
-                          )}
-
-                          <p className={`text-sm font-semibold leading-tight pr-6 ${
-                            isBusy ? 'text-slate-400' : isSelected ? 'text-purple-800' : 'text-slate-700'
-                          }`}>
-                            {item.nama_alat}
-                          </p>
-                          <span className={`inline-block mt-1.5 text-xs px-1.5 py-0.5 rounded-md font-medium ${
-                            item.kondisi === 'Baik' ? 'bg-green-100 text-green-700'
-                            : item.kondisi === 'Rusak Ringan' ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-red-100 text-red-600'
-                          }`}>{item.kondisi}</span>
-
-                          {/* Catatan dari inventaris */}
-                          {item.catatan && (
-                            <p className="text-xs text-slate-400 mt-1 leading-tight">📝 {item.catatan}</p>
-                          )}
-
-                          {isBusy && info && (
-                            <div className="mt-2 space-y-0.5">
-                              <p className="text-xs text-red-500 font-semibold">🔒 Sedang Dipinjam</p>
-                              <p className="text-xs text-slate-400 leading-tight">📌 {info.nama_kegiatan}</p>
-                              {info.perkiraan_kembali && (
-                                <p className="text-xs text-slate-400">🔄 Kembali: {
-                                  new Date(info.perkiraan_kembali + 'T00:00:00').toLocaleDateString('id-ID', {
-                                    day: 'numeric', month: 'short', year: 'numeric'
-                                  })
-                                }</p>
-                              )}
-                            </div>
-                          )}
-                        </button>
-                      )
-                    }
-
-                    // ── GROUP card (punya unit) ──
-                    const { prefix, units } = card
-                    const availableUnits  = units.filter(u => u.status === 'Tersedia')
-                    const selectedUnits   = units.filter(u => selectedIds.includes(u.id))
-                    const allBusy         = availableUnits.length === 0
-                    const hasSelected     = selectedUnits.length > 0
-
-                    return (
-                      <button
-                        key={prefix}
-                        type="button"
-                        disabled={allBusy}
-                        onClick={() => !allBusy && setOpenGroup(prefix)}
-                        className={`relative text-left p-3 rounded-xl border-2 transition-all ${
-                          allBusy
-                            ? 'border-slate-200 bg-slate-50 opacity-80 cursor-not-allowed'
-                            : hasSelected
-                              ? 'border-purple-500 bg-purple-50 shadow-sm'
-                              : 'border-slate-200 bg-white hover:border-purple-300 hover:bg-purple-50/30'
-                        }`}
-                      >
-                        {/* Badge jumlah terpilih */}
-                        {hasSelected && (
-                          <div className="absolute top-2 right-2 min-w-5 h-5 px-1 bg-purple-600 rounded-full flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">{selectedUnits.length}</span>
-                          </div>
-                        )}
-                        {allBusy && (
-                          <div className="absolute top-2 right-2 w-5 h-5 bg-red-400 rounded-full flex items-center justify-center">
-                            <Lock className="w-3 h-3 text-white" />
-                          </div>
-                        )}
-
-                        <p className={`text-sm font-semibold leading-tight pr-6 ${
-                          allBusy ? 'text-slate-400' : hasSelected ? 'text-purple-800' : 'text-slate-700'
-                        }`}>
-                          {prefix}
-                        </p>
-
-                        {/* Mini unit dots */}
-                        <div className="flex gap-1 mt-2 flex-wrap">
-                          {units.map(u => {
-                            const isSel  = selectedIds.includes(u.id)
-                            const isBusy = u.status === 'Dipinjam'
-                            const num    = u.nama_alat.match(/#?(\d+)$/)?.[1]
-                            return (
-                              <span key={u.id} className={`inline-flex items-center justify-center w-6 h-6 rounded-lg text-xs font-bold ${
-                                isBusy  ? 'bg-red-100 text-red-400'
-                                : isSel   ? 'bg-purple-600 text-white'
-                                : 'bg-slate-100 text-slate-500'
-                              }`}>
-                                {num}
-                              </span>
-                            )
-                          })}
-                        </div>
-
-                        {/* Tersedia count */}
-                        <p className={`text-xs mt-1.5 font-medium ${
-                          allBusy ? 'text-red-400' : 'text-slate-400'
-                        }`}>
-                          {allBusy
-                            ? '🔒 Semua sedang dipinjam'
-                            : hasSelected
-                              ? `${selectedUnits.length} dipilih · ${availableUnits.length} tersedia`
-                              : `${availableUnits.length} dari ${units.length} tersedia · ketuk untuk pilih`
-                          }
-                        </p>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {filtered.length === 0 && (
-          <div className="text-center py-8 text-slate-400">
-            <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">Tidak ada alat di kategori ini</p>
-          </div>
-        )}
-      </div>
-
-      {/* Unit Picker Popup */}
-      {openGroup && (() => {
-        const group = {
-          prefix: openGroup,
-          units: inventaris.filter(i => {
-            const p = getPrefix(i.nama_alat)
-            return p === openGroup
-          })
-        }
-        return (
-          <UnitPickerPopup
-            group={group}
-            selectedIds={selectedIds}
-            onToggle={onToggle}
-            onClose={() => setOpenGroup(null)}
-          />
-        )
-      })()}
-    </>
-  )
-}
-
-// ─── Form Peminjaman ────────────────────────────────────────
+// ─── Form Peminjaman ─────────────────────────────────────────
 function PeminjamanForm({ onClose, onSuccess }) {
   const supabase = createClient()
   const [step, setStep] = useState(0)
@@ -480,6 +78,7 @@ function PeminjamanForm({ onClose, onSuccess }) {
   const [customDurasi, setCustomDurasi] = useState(false)
   const [inventaris, setInventaris] = useState([])
   const [loadingInventaris, setLoadingInventaris] = useState(true)
+  const [jadwalList, setJadwalList] = useState([])
 
   const [form, setForm] = useState({
     jenis_acara: 'Sekolah',
@@ -488,13 +87,13 @@ function PeminjamanForm({ onClose, onSuccess }) {
     tanggal: '',
     nama_peminjam: '',
     no_telepon: '',
-    selected_items: [],   // array of inventaris IDs
-    catatan_barang: '',   // deskripsi opsional
+    selected_items: [],
+    catatan_barang: '',
     durasi_hari: 1,
     perkiraan_kembali: '',
     lampiran_bukti: null,
     foto_identitas: null,
-    jadwal_id: null,      // relasi ke jadwal_dokumentasi (opsional)
+    jadwal_id: null,
   })
 
   const set = (key, val) => setForm(f => {
@@ -523,52 +122,32 @@ function PeminjamanForm({ onClose, onSuccess }) {
   const identityLabel = isOrganisasi ? 'Foto Kartu Siswa / Kartu Anggota' : 'Foto KTP / Kartu Identitas'
   const steps = ['Jenis & Kegiatan', 'Detail Peminjam', 'Pilih Alat', 'Dokumen']
 
-  // Fetch inventaris + info peminjaman aktif
-  const [jadwalList, setJadwalList] = useState([])
-
   useEffect(() => {
     const fetchInventaris = async () => {
       setLoadingInventaris(true)
-
-      // Ambil semua alat
-      const { data: items } = await supabase
-        .from('inventaris')
-        .select('*')
-        .order('kategori')
-        .order('nama_alat')
-
-      // Ambil peminjaman yang aktif (approved/active, belum dikembalikan)
+      const { data: items } = await supabase.from('inventaris').select('*').order('kategori').order('nama_alat')
       const { data: peminjamanAktif } = await supabase
         .from('peminjaman')
         .select('id, nama_kegiatan, perkiraan_kembali, items_dipinjam')
         .in('status', ['approved', 'active'])
 
-      // Buat map: inventaris_id -> info peminjaman
       const busyMap = {}
       if (peminjamanAktif) {
         peminjamanAktif.forEach(p => {
           if (Array.isArray(p.items_dipinjam)) {
             p.items_dipinjam.forEach(itemId => {
-              busyMap[itemId] = {
-                nama_kegiatan: p.nama_kegiatan,
-                perkiraan_kembali: p.perkiraan_kembali,
-              }
+              busyMap[itemId] = { nama_kegiatan: p.nama_kegiatan, perkiraan_kembali: p.perkiraan_kembali }
             })
           }
         })
       }
 
-      // Gabungkan status real-time dari peminjaman aktif
-      const enriched = (items || []).map(item => ({
+      setInventaris((items || []).map(item => ({
         ...item,
-        // Override status jika ada di busyMap (dari peminjaman aktif)
         status: busyMap[item.id] ? 'Dipinjam' : item.status,
         _peminjamanAktif: busyMap[item.id] || null,
-      }))
+      })))
 
-      setInventaris(enriched)
-
-      // Ambil jadwal dokumentasi yang belum lewat (untuk relasi)
       const today = new Date().toISOString().split('T')[0]
       const { data: jadwal } = await supabase
         .from('jadwal_dokumentasi')
@@ -576,7 +155,6 @@ function PeminjamanForm({ onClose, onSuccess }) {
         .gte('tanggal', today)
         .order('tanggal', { ascending: true })
       setJadwalList(jadwal || [])
-
       setLoadingInventaris(false)
     }
     fetchInventaris()
@@ -594,72 +172,71 @@ function PeminjamanForm({ onClose, onSuccess }) {
 
   const handleNext = () => {
     if (!validateStep()) {
-      if (step === 2 && form.selected_items.length === 0) {
-        alert('Pilih minimal 1 alat untuk dipinjam')
-      } else {
-        alert('Harap lengkapi semua field yang wajib (*)')
-      }
+      if (step === 2 && form.selected_items.length === 0) alert('Pilih minimal 1 alat untuk dipinjam')
+      else alert('Harap lengkapi semua field yang wajib (*)')
       return
     }
     setStep(s => s + 1)
   }
 
-  // Buat daftar nama alat terpilih (untuk kolom detail_barang)
   const selectedNamas = form.selected_items
     .map(id => inventaris.find(i => i.id === id)?.nama_alat)
     .filter(Boolean)
 
   const handleSubmit = async () => {
-    // Validasi dokumen wajib jika bukan sekolah
     if (!isSekolah) {
       if (!form.foto_identitas) { alert(`${identityLabel} wajib diupload!`); return }
       if (!form.lampiran_bukti) { alert('Surat peminjaman wajib diupload!'); return }
     }
     setSubmitting(true)
-    const { data: { user } } = await supabase.auth.getUser()
 
     const uploadFile = async (file, prefix) => {
       if (!file) return null
+      if (file.size > MAX_FILE_BYTES) { alert(`File ${file.name} melebihi 5MB!`); return null }
       const ext = file.name.split('.').pop()
       const path = `${prefix}-${Date.now()}.${ext}`
       const { error } = await supabase.storage.from('lampiran').upload(path, file)
-      if (error) return null
+      if (error) { alert('Gagal upload file: ' + error.message); return null }
       return supabase.storage.from('lampiran').getPublicUrl(path).data?.publicUrl
     }
 
     const lampiran_url  = !isSekolah ? await uploadFile(form.lampiran_bukti, 'bukti') : null
     const identitas_url = !isSekolah ? await uploadFile(form.foto_identitas, 'id')    : null
 
-    // Gabung nama alat + catatan opsional
     const detail = selectedNamas.join('\n') + (form.catatan_barang ? `\n\nCatatan: ${form.catatan_barang}` : '')
 
-    await supabase.from('peminjaman').insert({
-      jenis_acara: form.jenis_acara,
-      nama_kegiatan: form.nama_kegiatan,
-      asal_organisasi: form.asal_organisasi || null,
-      tanggal: form.tanggal,
-      nama_peminjam: form.nama_peminjam,
-      no_telepon: needsPhone ? form.no_telepon : null,
-      detail_barang: detail,
-      items_dipinjam: form.selected_items,
-      durasi_hari: Number(form.durasi_hari),
-      perkiraan_kembali: form.perkiraan_kembali || null,
-      lampiran_bukti: lampiran_url,
-      foto_identitas: identitas_url,
-      status: 'pending',
-      created_by: user?.id,
-      jadwal_id: form.jadwal_id || null,
-    })
-
-    setSubmitting(false)
-    onSuccess()
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error } = await supabase.from('peminjaman').insert({
+        jenis_acara: form.jenis_acara,
+        nama_kegiatan: form.nama_kegiatan,
+        asal_organisasi: form.asal_organisasi || null,
+        tanggal: form.tanggal,
+        nama_peminjam: form.nama_peminjam,
+        no_telepon: needsPhone ? form.no_telepon : null,
+        detail_barang: detail,
+        items_dipinjam: form.selected_items,
+        durasi_hari: Number(form.durasi_hari),
+        perkiraan_kembali: form.perkiraan_kembali || null,
+        lampiran_bukti: lampiran_url,
+        foto_identitas: identitas_url,
+        status: 'pending',
+        created_by: user?.id,
+        jadwal_id: form.jadwal_id || null,
+      })
+      if (error) throw error
+      onSuccess()
+    } catch (e) {
+      alert('Gagal menyimpan peminjaman: ' + e.message)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl flex flex-col max-h-[95vh]">
 
-        {/* Header sticky */}
         <div className="px-6 pt-5 pb-4 border-b border-slate-100">
           <div className="flex items-start justify-between mb-5">
             <div>
@@ -673,10 +250,9 @@ function PeminjamanForm({ onClose, onSuccess }) {
           <StepIndicator current={step} steps={steps} />
         </div>
 
-        {/* Body scrollable */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
 
-          {/* STEP 0 — Jenis & Kegiatan */}
+          {/* STEP 0 */}
           {step === 0 && <>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Jenis Kegiatan *</label>
@@ -710,14 +286,12 @@ function PeminjamanForm({ onClose, onSuccess }) {
                     const id = e.target.value || null
                     const jadwal = jadwalList.find(j => j.id === id)
                     set('jadwal_id', id)
-                    // Auto-isi nama & tanggal dari jadwal yang dipilih
                     if (jadwal) {
                       set('nama_kegiatan', jadwal.nama_kegiatan || form.nama_kegiatan)
                       if (jadwal.tanggal) set('tanggal', jadwal.tanggal)
                     }
                   }}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm
-                    focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
                 >
                   <option value="">— Tidak tautkan ke jadwal —</option>
                   {jadwalList.map(j => (
@@ -742,7 +316,6 @@ function PeminjamanForm({ onClose, onSuccess }) {
               />
             </div>
 
-            {/* Asal organisasi — muncul jika Organisasi atau Eksternal */}
             {(isOrganisasi || form.jenis_acara === 'Eksternal') && (
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">
@@ -755,9 +328,6 @@ function PeminjamanForm({ onClose, onSuccess }) {
                     className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
-                <p className="text-xs text-slate-400 mt-1">
-                  {isOrganisasi ? '🎯 Nama lengkap organisasi atau ekskul' : '🌐 Nama instansi, komunitas, atau "Pribadi"'}
-                </p>
               </div>
             )}
 
@@ -769,7 +339,7 @@ function PeminjamanForm({ onClose, onSuccess }) {
             </div>
           </>}
 
-          {/* STEP 1 — Detail Peminjam */}
+          {/* STEP 1 */}
           {step === 1 && <>
             <div className={`flex items-center gap-2 p-3 rounded-xl text-sm font-medium ${
               isSekolah ? 'bg-blue-50 text-blue-700' : isOrganisasi ? 'bg-orange-50 text-orange-700' : 'bg-purple-50 text-purple-700'
@@ -796,20 +366,14 @@ function PeminjamanForm({ onClose, onSuccess }) {
                     type="tel"
                     inputMode="numeric"
                     value={form.no_telepon}
-                    onChange={e => {
-                      // Hanya izinkan angka, +, dan spasi
-                      const val = e.target.value.replace(/[^\d+\s-]/g, '')
-                      set('no_telepon', val)
-                    }}
+                    onChange={e => set('no_telepon', e.target.value.replace(/[^\d+\s-]/g, ''))}
                     placeholder="cth: 08123456789"
-                    pattern="[0-9+\s\-]{8,15}"
                     className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
                 {form.no_telepon && form.no_telepon.replace(/\D/g, '').length < 8 && (
                   <p className="text-xs text-red-500 mt-1">⚠️ Nomor terlalu pendek (min. 8 digit)</p>
                 )}
-                {!form.no_telepon && <p className="text-xs text-slate-400 mt-1">📱 Akan dihubungi jika ada keperluan mendesak</p>}
               </div>
             )}
 
@@ -821,9 +385,8 @@ function PeminjamanForm({ onClose, onSuccess }) {
             )}
           </>}
 
-          {/* STEP 2 — Pilih Alat */}
+          {/* STEP 2 */}
           {step === 2 && <>
-            {/* Durasi dulu */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Lama Peminjaman *</label>
               <div className="grid grid-cols-3 gap-2 mb-3">
@@ -866,37 +429,27 @@ function PeminjamanForm({ onClose, onSuccess }) {
               )}
             </div>
 
-            {/* Divider */}
             <div className="border-t border-slate-100" />
 
-            {/* Grid alat */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-semibold text-slate-700">
-                  Pilih Alat yang Dipinjam *
-                </label>
+                <label className="text-sm font-semibold text-slate-700">Pilih Alat yang Dipinjam *</label>
                 {form.selected_items.length > 0 && (
                   <span className="text-xs font-bold bg-purple-600 text-white px-2.5 py-1 rounded-full">
                     {form.selected_items.length} dipilih
                   </span>
                 )}
               </div>
-
               {loadingInventaris ? (
                 <div className="flex items-center justify-center py-10">
                   <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
                   <p className="ml-3 text-sm text-slate-400">Memuat daftar alat...</p>
                 </div>
               ) : (
-                <InventarisGrid
-                  inventaris={inventaris}
-                  selectedIds={form.selected_items}
-                  onToggle={toggleItem}
-                />
+                <InventarisGrid inventaris={inventaris} selectedIds={form.selected_items} onToggle={toggleItem} />
               )}
             </div>
 
-            {/* Catatan opsional */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Catatan Tambahan <span className="text-slate-400 font-normal">(opsional)</span>
@@ -909,7 +462,7 @@ function PeminjamanForm({ onClose, onSuccess }) {
             </div>
           </>}
 
-          {/* STEP 3 — Dokumen & Ringkasan */}
+          {/* STEP 3 */}
           {step === 3 && <>
             {isSekolah ? (
               <div className="text-center py-4">
@@ -926,7 +479,6 @@ function PeminjamanForm({ onClose, onSuccess }) {
                   <span>Dokumen berikut <strong>wajib</strong> diupload untuk peminjam <strong>{form.jenis_acara}</strong></span>
                 </div>
 
-                {/* Foto identitas — WAJIB */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     {identityLabel} <span className="text-red-500">*</span>
@@ -946,14 +498,14 @@ function PeminjamanForm({ onClose, onSuccess }) {
                       </>
                     )}
                     <input type="file" accept="image/*" className="hidden"
-                      onChange={e => set('foto_identitas', e.target.files[0] || null)} />
+                      onChange={e => {
+                        const f = e.target.files[0]
+                        if (f && f.size > MAX_FILE_BYTES) { alert('File melebihi 5MB!'); return }
+                        set('foto_identitas', f || null)
+                      }} />
                   </label>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {isOrganisasi ? '📷 Foto kartu siswa atau kartu anggota ekskul' : '📷 Foto KTP atau kartu identitas yang berlaku'}
-                  </p>
                 </div>
 
-                {/* Surat peminjaman — WAJIB */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     Surat Peminjaman / Bukti Kegiatan <span className="text-red-500">*</span>
@@ -970,14 +522,16 @@ function PeminjamanForm({ onClose, onSuccess }) {
                       </>
                     )}
                     <input type="file" accept="image/*,.pdf" className="hidden"
-                      onChange={e => set('lampiran_bukti', e.target.files[0] || null)} />
+                      onChange={e => {
+                        const f = e.target.files[0]
+                        if (f && f.size > MAX_FILE_BYTES) { alert('File melebihi 5MB!'); return }
+                        set('lampiran_bukti', f || null)
+                      }} />
                   </label>
-                  <p className="text-xs text-slate-400 mt-1">📄 Surat resmi, screenshot undangan, atau bukti kegiatan</p>
                 </div>
               </>
             )}
 
-            {/* Ringkasan alat terpilih */}
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
               <p className="font-semibold text-slate-700 text-sm mb-3">📋 Ringkasan Peminjaman</p>
               <div className="space-y-1.5 text-xs mb-3">
@@ -997,24 +551,18 @@ function PeminjamanForm({ onClose, onSuccess }) {
                 ))}
               </div>
               <div className="border-t border-slate-200 pt-3">
-                <p className="text-xs font-semibold text-slate-500 mb-1.5">Alat yang Dipinjam ({selectedNamas.length} item):</p>
+                <p className="text-xs font-semibold text-slate-500 mb-1.5">Alat ({selectedNamas.length} item):</p>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedNamas.map((nama, i) => (
-                    <span key={i} className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-lg font-medium">
-                      {nama}
-                    </span>
+                    <span key={i} className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-lg font-medium">{nama}</span>
                   ))}
                 </div>
-                {form.catatan_barang && (
-                  <p className="text-xs text-slate-500 mt-2 italic">📝 Catatan: {form.catatan_barang}</p>
-                )}
               </div>
             </div>
           </>}
 
         </div>
 
-        {/* Footer navigation */}
         <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between flex-shrink-0">
           <button onClick={step === 0 ? onClose : () => setStep(s => s - 1)}
             className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 font-medium">
@@ -1042,18 +590,18 @@ function PeminjamanForm({ onClose, onSuccess }) {
   )
 }
 
-// ─── Main Page ──────────────────────────────────────────────
+// ─── Main Page ────────────────────────────────────────────────
 export default function PeminjamanPage() {
   const supabase = createClient()
-  const [data, setData]           = useState([])
+  const [data, setData]             = useState([])
   const [inventaris, setInventaris] = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [showForm, setShowForm]   = useState(false)
-  const [profile, setProfile]     = useState(null)
+  const [loading, setLoading]       = useState(true)
+  const [showForm, setShowForm]     = useState(false)
+  const [profile, setProfile]       = useState(null)
   const [filterJenis, setFilterJenis]   = useState('Semua')
   const [filterStatus, setFilterStatus] = useState('Semua')
-  const [search, setSearch]       = useState('')
-  const [expanded, setExpanded]   = useState(null)
+  const [search, setSearch]         = useState('')
+  const [expanded, setExpanded]     = useState(null)
 
   useEffect(() => { fetchData(); fetchProfile(); fetchInventaris() }, [])
 
@@ -1073,56 +621,35 @@ export default function PeminjamanPage() {
   const fetchData = async () => {
     setLoading(true)
     const { data: pem } = await supabase
-      .from('peminjaman')
-      .select('*')
-      .order('created_at', { ascending: false })
+      .from('peminjaman').select('*').order('created_at', { ascending: false })
     setData(pem || [])
     setLoading(false)
   }
 
   const handleApprove = async (id, action) => {
-    const { data: { user } } = await supabase.auth.getUser()
-
-    // Jika approve: update status peminjaman, lalu update status alat di inventaris
-    if (action === 'approve') {
-      const pem = data.find(d => d.id === id)
-
-      await supabase.from('peminjaman').update({
-        status: 'approved',
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error } = await supabase.from('peminjaman').update({
+        status: action === 'approve' ? 'approved' : 'rejected',
         approved_by: user?.id,
         approved_at: new Date().toISOString(),
       }).eq('id', id)
-
-      // Update status alat jadi 'Dipinjam'
-      if (Array.isArray(pem?.items_dipinjam) && pem.items_dipinjam.length > 0) {
-        await supabase
-          .from('inventaris')
-          .update({ status: 'Dipinjam' })
-          .in('id', pem.items_dipinjam)
-      }
-    } else {
-      await supabase.from('peminjaman').update({
-        status: 'rejected',
-        approved_by: user?.id,
-        approved_at: new Date().toISOString(),
-      }).eq('id', id)
+      if (error) throw error
+      fetchData()
+    } catch (e) {
+      alert('Gagal memperbarui status: ' + e.message)
     }
-
-    fetchData()
   }
 
   const handleDelete = async (id) => {
     if (!confirm('Yakin hapus data ini?')) return
-    // Kembalikan status alat ke Tersedia dulu
-    const pem = data.find(d => d.id === id)
-    if (Array.isArray(pem?.items_dipinjam) && pem.items_dipinjam.length > 0) {
-      await supabase
-        .from('inventaris')
-        .update({ status: 'Tersedia' })
-        .in('id', pem.items_dipinjam)
+    try {
+      const { error } = await supabase.from('peminjaman').delete().eq('id', id)
+      if (error) throw error
+      fetchData()
+    } catch (e) {
+      alert('Gagal menghapus: ' + e.message)
     }
-    await supabase.from('peminjaman').delete().eq('id', id)
-    fetchData()
   }
 
   const filtered = data.filter(d => {
@@ -1141,12 +668,9 @@ export default function PeminjamanPage() {
     Eksternal:  'bg-purple-50 text-purple-600 border-purple-100',
   }
 
-  // Helper: resolve nama alat dari UUID array
   const resolveNamas = (ids) => {
     if (!Array.isArray(ids) || ids.length === 0) return null
-    return ids
-      .map(id => inventaris.find(i => i.id === id)?.nama_alat)
-      .filter(Boolean)
+    return ids.map(id => inventaris.find(i => i.id === id)?.nama_alat).filter(Boolean)
   }
 
   return (
@@ -1170,7 +694,6 @@ export default function PeminjamanPage() {
         </div>
       </div>
 
-      {/* Filter bar */}
       <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 mb-5">
         <div className="flex flex-wrap gap-3 items-center">
           <div className="relative flex-1 min-w-44">
@@ -1199,7 +722,6 @@ export default function PeminjamanPage() {
         </div>
       </div>
 
-      {/* List */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="text-center text-slate-400">
@@ -1218,7 +740,6 @@ export default function PeminjamanPage() {
           {filtered.map(row => {
             const isOpen = expanded === row.id
             const namaAlat = resolveNamas(row.items_dipinjam)
-
             return (
               <div key={row.id} className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
                 <div className="px-5 py-4 flex items-center gap-4 cursor-pointer hover:bg-slate-50/60 transition-colors"
@@ -1242,7 +763,6 @@ export default function PeminjamanPage() {
                       {row.perkiraan_kembali && (
                         <span>🔄 Est. kembali: <strong className="text-slate-600">{row.perkiraan_kembali}</strong></span>
                       )}
-                      {/* Preview alat yang dipinjam */}
                       {namaAlat && namaAlat.length > 0 && (
                         <span className="text-purple-500 font-medium">
                           📦 {namaAlat.slice(0, 2).join(', ')}{namaAlat.length > 2 ? ` +${namaAlat.length - 2} alat` : ''}
@@ -1264,9 +784,7 @@ export default function PeminjamanPage() {
                         {namaAlat && namaAlat.length > 0 ? (
                           <div className="flex flex-wrap gap-1.5">
                             {namaAlat.map((nama, i) => (
-                              <span key={i} className="text-xs bg-purple-50 text-purple-700 border border-purple-100 px-2.5 py-1 rounded-lg font-medium">
-                                {nama}
-                              </span>
+                              <span key={i} className="text-xs bg-purple-50 text-purple-700 border border-purple-100 px-2.5 py-1 rounded-lg font-medium">{nama}</span>
                             ))}
                           </div>
                         ) : (
@@ -1274,7 +792,6 @@ export default function PeminjamanPage() {
                             {row.detail_barang}
                           </pre>
                         )}
-                        {/* Catatan */}
                         {row.detail_barang?.includes('Catatan:') && (
                           <p className="text-xs text-slate-500 mt-2 italic bg-amber-50 px-3 py-2 rounded-lg border border-amber-100">
                             📝 {row.detail_barang.split('Catatan:')[1]?.trim()}
@@ -1343,7 +860,12 @@ export default function PeminjamanPage() {
         </div>
       )}
 
-      {showForm && <PeminjamanForm onClose={() => setShowForm(false)} onSuccess={() => { setShowForm(false); fetchData(); fetchInventaris() }} />}
+      {showForm && (
+        <PeminjamanForm
+          onClose={() => setShowForm(false)}
+          onSuccess={() => { setShowForm(false); fetchData(); fetchInventaris() }}
+        />
+      )}
     </div>
   )
 }

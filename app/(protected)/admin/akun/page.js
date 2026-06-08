@@ -39,22 +39,24 @@ export default function AkunPage() {
     setSubmitting(true)
     setMsg('')
 
-    const { data, error } = await supabase.auth.admin?.createUser({
-      email: inviteForm.email,
-      password: inviteForm.password,
-      user_metadata: { nama: inviteForm.nama },
-      email_confirm: true,
-    })
-
-    if (error) {
-      setMsg('Gagal membuat akun: ' + error.message + '. Gunakan Supabase Dashboard untuk membuat user baru.')
-    } else {
-      if (inviteForm.role === 'admin') {
-        await supabase.from('profiles').update({ role: 'admin', nama: inviteForm.nama }).eq('id', data.user.id)
-      }
+    try {
+      const res = await fetch('/api/admin/create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: inviteForm.email,
+          password: inviteForm.password,
+          nama: inviteForm.nama,
+          role: inviteForm.role,
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Gagal membuat akun')
       setMsg('Akun berhasil dibuat!')
       setInviteForm({ email: '', nama: '', password: '', role: 'anggota' })
       fetchData()
+    } catch (e) {
+      setMsg('Gagal membuat akun: ' + e.message)
     }
     setSubmitting(false)
   }
@@ -152,7 +154,7 @@ export default function AkunPage() {
       {/* Info banner */}
       <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
         <p className="font-medium mb-1">💡 Cara Tambah Anggota</p>
-        <p className="text-xs text-blue-600">Untuk menambah anggota baru, buka <strong>Supabase Dashboard → Authentication → Users → Add User</strong>. Setelah user dibuat, ubah nama di profil dan sesuaikan role di sini.</p>
+        <p className="text-xs text-blue-600">Klik <strong>Tambah Anggota</strong> di atas untuk membuat akun baru. Setelah dibuat, akun langsung bisa login. Role bisa diubah kapan saja dari tabel di bawah.</p>
       </div>
 
       {/* Invite Modal */}
@@ -169,8 +171,8 @@ export default function AkunPage() {
                   {msg}
                 </div>
               )}
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
-                ⚠️ Fitur ini memerlukan Supabase Service Role Key. Disarankan membuat user langsung dari Supabase Dashboard untuk keamanan.
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
+                ℹ️ Akun baru akan langsung aktif dan bisa login dengan email + password yang diisi.
               </div>
               {[
                 { key: 'nama', label: 'Nama Lengkap', type: 'text', placeholder: 'cth: Vania Putri' },

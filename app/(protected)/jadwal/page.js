@@ -17,7 +17,7 @@ const TABS = [
   { key: 'thumbnail',   label: 'Thumbnail',     table: 'jadwal_thumbnail' },
 ]
 
-const ANGGOTA = ['Lionel', 'Ubai', 'Nana', 'Vania', 'Satrio', 'Miko', 'Ino']
+const ANGGOTA_FALLBACK = ['Lionel', 'Ubai', 'Nana', 'Vania', 'Satrio', 'Miko', 'Ino']
 const STATUS_OPTIONS = ['Belum Dibuat', 'Proses', 'Selesai']
 
 const DOKT_ROLES = [
@@ -50,8 +50,8 @@ function fmt(d) {
 function fmtTime(t) { return t ? t.slice(0,5) : '—' }
 
 // Dropdown + manual input
-function RoleInput({ label, icon, value, onChange }) {
-  const isManual = value && !ANGGOTA.includes(value)
+function RoleInput({ label, icon, value, onChange, anggotaList = [] }) {
+  const isManual = value && !anggotaList.includes(value)
   const [mode, setMode] = useState(isManual ? 'manual' : 'drop')
   return (
     <div>
@@ -68,7 +68,7 @@ function RoleInput({ label, icon, value, onChange }) {
             ${mode === 'manual' ? 'w-[120px] flex-none' : 'flex-1'}`}
         >
           <option value="">— Pilih —</option>
-          {ANGGOTA.map(a => <option key={a} value={a}>{a}</option>)}
+          {anggotaList.map(a => <option key={a} value={a}>{a}</option>)}
           <option value="__m__">✏️ Manual...</option>
         </select>
         {mode === 'manual' && (
@@ -118,6 +118,7 @@ export default function JadwalPage() {
   const [filterBulan, setFilterBulan] = useState('')
   const [calMonth, setCalMonth]     = useState(new Date())
   const [peminjamanByJadwal, setPeminjamanByJadwal] = useState({})
+  const [anggotaList, setAnggotaList] = useState(ANGGOTA_FALLBACK)
 
   useEffect(() => {
     const init = async () => {
@@ -125,6 +126,10 @@ export default function JadwalPage() {
       if (user) {
         const { data: p } = await supabase.from('profiles').select('nama,role').eq('id', user.id).single()
         setProfile(p)
+      }
+      const { data: allProfiles } = await supabase.from('profiles').select('nama').order('nama')
+      if (allProfiles && allProfiles.length > 0) {
+        setAnggotaList(allProfiles.map(p => p.nama).filter(Boolean))
       }
       await fetchAll()
     }
@@ -201,15 +206,22 @@ export default function JadwalPage() {
       ...(activeTab === 'feed' ? { link_asset: form.link_asset || null } : {}),
     }
 
-    if (editRow) {
-      await supabase.from(currentTab.table).update(payload).eq('id', editRow.id)
-    } else {
-      const maxNo = allRows.length > 0 ? Math.max(...allRows.map(r => r.no || 0)) : 0
-      await supabase.from(currentTab.table).insert({ ...payload, no: maxNo + 1 })
+    try {
+      if (editRow) {
+        const { error } = await supabase.from(currentTab.table).update(payload).eq('id', editRow.id)
+        if (error) throw error
+      } else {
+        const maxNo = allRows.length > 0 ? Math.max(...allRows.map(r => r.no || 0)) : 0
+        const { error } = await supabase.from(currentTab.table).insert({ ...payload, no: maxNo + 1 })
+        if (error) throw error
+      }
+      setForm(defaultForm()); setShowForm(false); setEditRow(null)
+      fetchAll()
+    } catch (e) {
+      alert('Gagal menyimpan: ' + e.message)
+    } finally {
+      setSubmitting(false)
     }
-
-    setForm(defaultForm()); setShowForm(false); setEditRow(null); setSubmitting(false)
-    fetchAll()
   }
 
   const handleEdit = (row) => {
@@ -234,8 +246,13 @@ export default function JadwalPage() {
 
   const handleDelete = async (id) => {
     if (!confirm('Hapus jadwal ini?')) return
-    await supabase.from(currentTab.table).delete().eq('id', id)
-    fetchAll()
+    try {
+      const { error } = await supabase.from(currentTab.table).delete().eq('id', id)
+      if (error) throw error
+      fetchAll()
+    } catch (e) {
+      alert('Gagal menghapus: ' + e.message)
+    }
   }
 
   // Kalender
@@ -596,7 +613,8 @@ export default function JadwalPage() {
                       {DOKT_ROLES.map(role => (
                         <RoleInput key={role.key} label={role.label} icon={role.icon}
                           value={form[role.key]}
-                          onChange={val => setForm(f => ({...f, [role.key]: val}))}/>
+                          onChange={val => setForm(f => ({...f, [role.key]: val}))}
+                          anggotaList={anggotaList}/>
                       ))}
                     </div>
                   </div>
@@ -634,7 +652,7 @@ export default function JadwalPage() {
                       <select value={form.pembuat} onChange={e => setForm(f => ({...f, pembuat: e.target.value}))}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
                         <option value="">— Pilih —</option>
-                        {ANGGOTA.map(a => <option key={a} value={a}>{a}</option>)}
+                        {anggotaList.map(a => <option key={a} value={a}>{a}</option>)}
                       </select>
                     </div>
                     <div>
