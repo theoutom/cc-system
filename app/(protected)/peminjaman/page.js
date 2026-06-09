@@ -80,6 +80,8 @@ function PeminjamanForm({ onClose, onSuccess }) {
   const [activePem, setActivePem]         = useState([])
   const [loadingInventaris, setLoadingInventaris] = useState(true)
   const [jadwalList, setJadwalList] = useState([])
+  const [prevBorrowers, setPrevBorrowers] = useState([])
+  const [loadingPrev, setLoadingPrev]     = useState(false)
 
   const [form, setForm] = useState({
     jenis_acara: 'Sekolah',
@@ -281,7 +283,21 @@ function PeminjamanForm({ onClose, onSuccess }) {
                   { j: 'Organisasi', icon: '🎯', desc: 'Ekskul / Organisasi' },
                   { j: 'Eksternal',  icon: '🌐', desc: 'Pribadi / Luar sekolah' },
                 ].map(({ j, icon, desc }) => (
-                  <button key={j} type="button" onClick={() => set('jenis_acara', j)}
+                  <button key={j} type="button" onClick={async () => {
+                    set('jenis_acara', j)
+                    set('asal_organisasi', '')
+                    setPrevBorrowers([])
+                    if (j === 'Organisasi' || j === 'Eksternal') {
+                      setLoadingPrev(true)
+                      const { data } = await supabase.from('peminjaman')
+                        .select('asal_organisasi').eq('jenis_acara', j)
+                        .not('asal_organisasi', 'is', null).order('created_at', { ascending: false }).limit(200)
+                      const seen = new Set(); const unique = []
+                      ;(data || []).forEach(d => { const k = (d.asal_organisasi || '').trim(); if (k && !seen.has(k)) { seen.add(k); unique.push(k) } })
+                      setPrevBorrowers(unique)
+                      setLoadingPrev(false)
+                    }
+                  }}
                     className={`p-3 rounded-xl border-2 text-left transition-all ${form.jenis_acara === j ? 'border-purple-500 bg-purple-50' : 'border-slate-200 hover:border-purple-300'}`}>
                     <div className="text-2xl mb-1">{icon}</div>
                     <p className={`text-sm font-semibold ${form.jenis_acara === j ? 'text-purple-700' : 'text-slate-700'}`}>{j}</p>
@@ -336,16 +352,32 @@ function PeminjamanForm({ onClose, onSuccess }) {
             </div>
 
             {(isOrganisasi || form.jenis_acara === 'Eksternal') && (
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  {isOrganisasi ? 'Nama Organisasi / Ekskul *' : 'Instansi / Pihak *'}
-                </label>
-                <div className="relative">
-                  <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input value={form.asal_organisasi} onChange={e => set('asal_organisasi', e.target.value)}
-                    placeholder={isOrganisasi ? 'cth: OSIS SMA N 1 Solo / Ekskul Fotografi' : 'cth: Pribadi / PT. Contoh Indonesia'}
-                    className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
+              <div className="space-y-2">
+                {loadingPrev ? (
+                  <p className="text-xs text-slate-400">Memuat riwayat...</p>
+                ) : prevBorrowers.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Pernah Pinjam Sebelumnya?</label>
+                    <select defaultValue=""
+                      onChange={e => { if (e.target.value) set('asal_organisasi', e.target.value) }}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white">
+                      <option value="">-- Baru / Belum pernah pinjam --</option>
+                      {prevBorrowers.map(name => <option key={name} value={name}>{name}</option>)}
+                    </select>
+                    <p className="text-xs text-slate-400 mt-1">Pilih dari riwayat, atau isi manual di bawah</p>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    {isOrganisasi ? 'Nama Organisasi / Ekskul *' : 'Instansi / Pihak *'}
+                  </label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input value={form.asal_organisasi} onChange={e => set('asal_organisasi', e.target.value)}
+                      placeholder={isOrganisasi ? 'cth: OSIS SMA N 1 Solo / Ekskul Fotografi' : 'cth: Pribadi / PT. Contoh Indonesia'}
+                      className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -1157,22 +1189,41 @@ Tim CC`
                             </div>
                           </div>
                         )}
-                        {row.foto_identitas && (
+                        {(row.foto_identitas || row.lampiran_bukti) && (
                           <div>
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Dokumen Identitas</p>
-                            <a href={row.foto_identitas} target="_blank" rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 text-xs text-purple-600 bg-purple-50 hover:bg-purple-100 px-3 py-2 rounded-lg font-medium transition-colors">
-                              <CreditCard className="w-3.5 h-3.5" /> Lihat Kartu Identitas
-                            </a>
-                          </div>
-                        )}
-                        {row.lampiran_bukti && (
-                          <div>
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Lampiran</p>
-                            <a href={row.lampiran_bukti} target="_blank" rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg font-medium transition-colors">
-                              <Upload className="w-3.5 h-3.5" /> Lihat Lampiran
-                            </a>
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Dokumen</p>
+                            <div className="flex flex-wrap gap-2">
+                              {row.foto_identitas && (
+                                <a href={row.foto_identitas} target="_blank" rel="noreferrer"
+                                  className="group block w-24 rounded-xl overflow-hidden border-2 border-purple-100 hover:border-purple-400 transition-all">
+                                  {/\.(jpg|jpeg|png|webp|gif)$/i.test(row.foto_identitas) ? (
+                                    <img src={row.foto_identitas} alt="Identitas"
+                                      className="w-full h-20 object-cover group-hover:scale-105 transition-transform" />
+                                  ) : (
+                                    <div className="w-full h-20 bg-purple-50 flex flex-col items-center justify-center">
+                                      <CreditCard className="w-6 h-6 text-purple-400 mb-1" />
+                                      <span className="text-xs text-purple-500 font-medium">PDF</span>
+                                    </div>
+                                  )}
+                                  <p className="text-xs text-center text-purple-600 font-medium py-1 bg-purple-50">Identitas</p>
+                                </a>
+                              )}
+                              {row.lampiran_bukti && (
+                                <a href={row.lampiran_bukti} target="_blank" rel="noreferrer"
+                                  className="group block w-24 rounded-xl overflow-hidden border-2 border-blue-100 hover:border-blue-400 transition-all">
+                                  {/\.(jpg|jpeg|png|webp|gif)$/i.test(row.lampiran_bukti) ? (
+                                    <img src={row.lampiran_bukti} alt="Lampiran"
+                                      className="w-full h-20 object-cover group-hover:scale-105 transition-transform" />
+                                  ) : (
+                                    <div className="w-full h-20 bg-blue-50 flex flex-col items-center justify-center">
+                                      <Upload className="w-6 h-6 text-blue-400 mb-1" />
+                                      <span className="text-xs text-blue-500 font-medium">PDF</span>
+                                    </div>
+                                  )}
+                                  <p className="text-xs text-center text-blue-600 font-medium py-1 bg-blue-50">Lampiran</p>
+                                </a>
+                              )}
+                            </div>
                           </div>
                         )}
                         {row.token && (
