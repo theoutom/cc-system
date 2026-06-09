@@ -5,7 +5,7 @@ import { InventarisGrid } from '@/components/InventarisGrid'
 import {
   Plus, X, Upload, Package, Phone, CalendarCheck,
   User, CreditCard, School, Search, ChevronDown, CheckCircle,
-  AlertCircle, Info, Lock, Clock, Building2, Mail
+  AlertCircle, Info, Lock, Clock, Building2, Mail, MessageCircle, Bell
 } from 'lucide-react'
 
 const JENIS = ['Sekolah', 'Organisasi', 'Eksternal']
@@ -688,6 +688,38 @@ export default function PeminjamanPage() {
 
   const isBlacklisted = (row) => daftarHitam.includes((row.nama_peminjam || '').toLowerCase())
 
+  const tomorrow = (() => {
+    const d = new Date(); d.setDate(d.getDate() + 1)
+    return d.toISOString().split('T')[0]
+  })()
+
+  const h1List = data.filter(d =>
+    ['approved', 'active'].includes(d.status) &&
+    d.perkiraan_kembali === tomorrow
+  )
+
+  const formatWAPhone = (no) => {
+    if (!no) return null
+    const digits = no.replace(/\D/g, '')
+    if (digits.startsWith('0')) return '62' + digits.slice(1)
+    if (digits.startsWith('62')) return digits
+    return '62' + digits
+  }
+
+  const sendWAReminder = (row) => {
+    const waPhone = formatWAPhone(row.no_telepon)
+    if (!waPhone) return
+    const kembali = `${row.perkiraan_kembali}${row.jam_pengembalian ? ' pukul ' + row.jam_pengembalian.slice(0,5) : ''}`
+    const text = `Halo ${row.nama_peminjam},
+
+Pengingat dari tim CC — alat yang kamu pinjam untuk kegiatan *${row.nama_kegiatan}* harus dikembalikan *besok, ${kembali}*.${row.token ? `
+
+Token pengembalian: *${row.token}*` : ''}
+
+Mohon dikembalikan tepat waktu ya. Terima kasih! 🙏`
+    window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(text)}`, '_blank')
+  }
+
   const fetchData = async () => {
     setLoading(true)
     const { data: pem } = await supabase
@@ -876,6 +908,49 @@ Tim CC`
           </button>
         </div>
       </div>
+
+      {/* H-1 Reminder Panel */}
+      {h1List.length > 0 && profile?.role === 'admin' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Bell className="w-4 h-4 text-amber-600" />
+            <p className="text-sm font-bold text-amber-800">
+              Pengingat H-1 — {h1List.length} peminjaman jatuh tempo besok ({tomorrow})
+            </p>
+          </div>
+          <div className="space-y-2">
+            {h1List.map(row => (
+              <div key={row.id} className="bg-white border border-amber-100 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-800 truncate">{row.nama_kegiatan}</p>
+                  <p className="text-xs text-slate-500">
+                    {row.nama_peminjam}
+                    {row.jam_pengembalian ? ` · Kembali pukul ${row.jam_pengembalian.slice(0,5)}` : ''}
+                    {row.token ? ` · Token: ${row.token}` : ''}
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  {row.no_telepon && (
+                    <button onClick={() => sendWAReminder(row)}
+                      className="flex items-center gap-1.5 text-xs bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                      <MessageCircle className="w-3.5 h-3.5" /> WA
+                    </button>
+                  )}
+                  {row.email_peminjam && (
+                    <button onClick={() => sendEmail(row, 'reminder')}
+                      className="flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-3 py-1.5 rounded-lg font-medium transition-colors">
+                      <Mail className="w-3.5 h-3.5" /> Email
+                    </button>
+                  )}
+                  {!row.no_telepon && !row.email_peminjam && (
+                    <span className="text-xs text-slate-400 italic">Tidak ada kontak</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 mb-5">
         <div className="flex flex-wrap gap-3 items-center">

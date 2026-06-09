@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabaseServer'
-import { Package, RotateCcw, AlertCircle, Box, TrendingUp, Clock, Wrench } from 'lucide-react'
+import { Package, AlertCircle, Box, TrendingUp, Clock, Bell } from 'lucide-react'
 
 function calcOverdue(perkiraan_kembali) {
   if (!perkiraan_kembali) return null
@@ -14,6 +14,8 @@ export default async function DashboardPage() {
   const supabase = await createClient()
 
   const today = new Date().toISOString().split('T')[0]
+  const tomorrowDate = new Date(); tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+  const tomorrow = tomorrowDate.toISOString().split('T')[0]
 
   const [
     { count: totalPeminjaman },
@@ -22,6 +24,7 @@ export default async function DashboardPage() {
     { data: recentPeminjaman },
     { data: inventarisStat },
     { data: activePeminjaman },
+    { data: h1Raw },
   ] = await Promise.all([
     supabase.from('peminjaman').select('*', { count: 'exact', head: true }),
     supabase.from('peminjaman').select('*', { count: 'exact', head: true }).in('status', ['approved', 'active']),
@@ -33,6 +36,10 @@ export default async function DashboardPage() {
       .in('status', ['approved', 'active'])
       .not('perkiraan_kembali', 'is', null)
       .order('perkiraan_kembali', { ascending: true }),
+    supabase.from('peminjaman')
+      .select('id, nama_kegiatan, nama_peminjam, jam_pengembalian, no_telepon, email_peminjam')
+      .in('status', ['approved', 'active'])
+      .eq('perkiraan_kembali', tomorrow),
   ])
 
   const tersedia  = inventarisStat?.filter(i => i.status === 'Tersedia' && !i.in_maintenance).length || 0
@@ -45,12 +52,14 @@ export default async function DashboardPage() {
     return d !== null && d <= 0 && d >= -2
   })
   const overdueCount  = overdueList.length
+  const h1List        = h1Raw || []
 
   const stats = [
     { label: 'Total Peminjaman',   value: totalPeminjaman || 0, icon: Package,      light: 'bg-blue-50 text-blue-600'   },
     { label: 'Sedang Dipinjam',    value: aktif || 0,           icon: TrendingUp,   light: 'bg-amber-50 text-amber-600' },
     { label: 'Menunggu Approval',  value: pending || 0,         icon: AlertCircle,  light: 'bg-red-50 text-red-600'     },
     { label: 'Terlambat Kembali',  value: overdueCount,         icon: Clock,        light: overdueCount > 0 ? 'bg-red-100 text-red-700' : 'bg-green-50 text-green-600' },
+    { label: 'Jatuh Tempo Besok',  value: h1List.length,        icon: Bell,         light: h1List.length > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-50 text-slate-400' },
   ]
 
   const statusColor = {
@@ -90,8 +99,28 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      {/* H-1 reminder banner */}
+      {h1List.length > 0 && (
+        <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <div className="flex items-center gap-2 mb-2">
+            <Bell className="w-4 h-4 text-amber-600" />
+            <p className="text-sm font-bold text-amber-800">Pengingat H-1 — {h1List.length} peminjaman jatuh tempo besok ({tomorrow})</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {h1List.map(p => (
+              <span key={p.id} className="text-xs bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg font-medium">
+                {p.nama_kegiatan} · {p.nama_peminjam}
+                {p.jam_pengembalian ? ` · ${p.jam_pengembalian.slice(0,5)}` : ''}
+                {(p.no_telepon || p.email_peminjam) ? ' ✉️' : ' — tidak ada kontak'}
+              </span>
+            ))}
+          </div>
+          <p className="text-xs text-amber-600 mt-2">Kirim pengingat via halaman <strong>Peminjaman</strong> → panel H-1.</p>
+        </div>
+      )}
+
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         {stats.map(({ label, value, icon: Icon, light }) => (
           <div key={label} className={`bg-white rounded-xl p-5 shadow-sm border ${label === 'Terlambat Kembali' && value > 0 ? 'border-red-200' : 'border-slate-100'}`}>
             <div className="flex items-center justify-between mb-3">
