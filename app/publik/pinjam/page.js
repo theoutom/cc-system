@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import {
   Camera, CheckCircle, X, Phone, Upload, CreditCard,
@@ -57,8 +57,9 @@ export default function PublikPinjamPage() {
   const [step, setStep] = useState(0)
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [inventaris, setInventaris] = useState([])
-  const [loadingInv, setLoadingInv] = useState(true)
+  const [rawInventaris, setRawInventaris] = useState([])
+  const [activePem, setActivePem]         = useState([])
+  const [loadingInv, setLoadingInv]       = useState(true)
   const [customDurasi, setCustomDurasi] = useState(false)
   const [prevBorrowers, setPrevBorrowers] = useState([])
   const [loadingPrev, setLoadingPrev] = useState(false)
@@ -135,22 +136,39 @@ export default function PublikPinjamPage() {
     const fetchInv = async () => {
       setLoadingInv(true)
       const { data: items } = await supabase.from('inventaris').select('*').order('kategori').order('nama_alat')
-      const { data: aktif } = await supabase.from('peminjaman').select('id, nama_kegiatan, perkiraan_kembali, items_dipinjam').in('status', ['approved', 'active'])
-      const busyMap = {}
-      if (aktif) aktif.forEach(p => {
-        if (Array.isArray(p.items_dipinjam)) p.items_dipinjam.forEach(id => {
-          busyMap[id] = { nama_kegiatan: p.nama_kegiatan, perkiraan_kembali: p.perkiraan_kembali }
-        })
-      })
-      setInventaris((items || []).map(item => ({
-        ...item,
-        status: busyMap[item.id] ? 'Dipinjam' : item.status,
-        _peminjamanAktif: busyMap[item.id] || null,
-      })))
+      const { data: aktif } = await supabase.from('peminjaman')
+        .select('id, nama_kegiatan, tanggal, perkiraan_kembali, items_dipinjam')
+        .in('status', ['approved', 'active'])
+      setRawInventaris(items || [])
+      setActivePem(aktif || [])
       setLoadingInv(false)
     }
     fetchInv()
   }, [])
+
+  const inventaris = useMemo(() => {
+    const reqStart = form.tanggal
+    const reqEnd   = form.perkiraan_kembali || form.tanggal
+    const busyMap  = {}
+    activePem.forEach(p => {
+      const pStart = p.tanggal
+      const pEnd   = p.perkiraan_kembali || p.tanggal
+      if (!pStart) return
+      const overlaps = reqStart && reqEnd
+        ? reqStart <= pEnd && reqEnd >= pStart
+        : true
+      if (overlaps && Array.isArray(p.items_dipinjam)) {
+        p.items_dipinjam.forEach(id => {
+          if (!busyMap[id]) busyMap[id] = { nama_kegiatan: p.nama_kegiatan, tanggal: pStart, perkiraan_kembali: pEnd }
+        })
+      }
+    })
+    return rawInventaris.map(item => ({
+      ...item,
+      status: busyMap[item.id] ? 'Dipinjam' : item.status,
+      _peminjamanAktif: busyMap[item.id] || null,
+    }))
+  }, [rawInventaris, activePem, form.tanggal, form.perkiraan_kembali])
 
   const validateStep = () => {
     if (step === 0) return !!form.jenis_acara && !!form.nama_kegiatan && !!form.tanggal &&

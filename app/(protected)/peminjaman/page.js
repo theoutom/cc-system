@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { InventarisGrid } from '@/components/InventarisGrid'
 import {
@@ -76,7 +76,8 @@ function PeminjamanForm({ onClose, onSuccess }) {
   const [step, setStep] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [customDurasi, setCustomDurasi] = useState(false)
-  const [inventaris, setInventaris] = useState([])
+  const [rawInventaris, setRawInventaris] = useState([])
+  const [activePem, setActivePem]         = useState([])
   const [loadingInventaris, setLoadingInventaris] = useState(true)
   const [jadwalList, setJadwalList] = useState([])
 
@@ -99,6 +100,30 @@ function PeminjamanForm({ onClose, onSuccess }) {
     foto_identitas: null,
     jadwal_id: null,
   })
+
+  const inventaris = useMemo(() => {
+    const reqStart = form.tanggal
+    const reqEnd   = form.perkiraan_kembali || form.tanggal
+    const busyMap  = {}
+    activePem.forEach(p => {
+      const pStart = p.tanggal
+      const pEnd   = p.perkiraan_kembali || p.tanggal
+      if (!pStart) return
+      const overlaps = reqStart && reqEnd
+        ? reqStart <= pEnd && reqEnd >= pStart
+        : true
+      if (overlaps && Array.isArray(p.items_dipinjam)) {
+        p.items_dipinjam.forEach(id => {
+          if (!busyMap[id]) busyMap[id] = { nama_kegiatan: p.nama_kegiatan, tanggal: pStart, perkiraan_kembali: pEnd }
+        })
+      }
+    })
+    return rawInventaris.map(item => ({
+      ...item,
+      status: busyMap[item.id] ? 'Dipinjam' : item.status,
+      _peminjamanAktif: busyMap[item.id] || null,
+    }))
+  }, [rawInventaris, activePem, form.tanggal, form.perkiraan_kembali])
 
   const set = (key, val) => setForm(f => {
     const updated = { ...f, [key]: val }
@@ -132,25 +157,11 @@ function PeminjamanForm({ onClose, onSuccess }) {
       const { data: items } = await supabase.from('inventaris').select('*').order('kategori').order('nama_alat')
       const { data: peminjamanAktif } = await supabase
         .from('peminjaman')
-        .select('id, nama_kegiatan, perkiraan_kembali, items_dipinjam')
+        .select('id, nama_kegiatan, tanggal, perkiraan_kembali, items_dipinjam')
         .in('status', ['approved', 'active'])
 
-      const busyMap = {}
-      if (peminjamanAktif) {
-        peminjamanAktif.forEach(p => {
-          if (Array.isArray(p.items_dipinjam)) {
-            p.items_dipinjam.forEach(itemId => {
-              busyMap[itemId] = { nama_kegiatan: p.nama_kegiatan, perkiraan_kembali: p.perkiraan_kembali }
-            })
-          }
-        })
-      }
-
-      setInventaris((items || []).map(item => ({
-        ...item,
-        status: busyMap[item.id] ? 'Dipinjam' : item.status,
-        _peminjamanAktif: busyMap[item.id] || null,
-      })))
+      setRawInventaris(items || [])
+      setActivePem(peminjamanAktif || [])
 
       const today = new Date().toISOString().split('T')[0]
       const { data: jadwal } = await supabase
@@ -685,6 +696,23 @@ export default function PeminjamanPage() {
     setLoading(false)
   }
 
+  const getKonflikItems = (row) => {
+    if (!Array.isArray(row.items_dipinjam) || row.items_dipinjam.length === 0) return []
+    const reqStart = row.tanggal
+    const reqEnd   = row.perkiraan_kembali || row.tanggal
+    return data.filter(other =>
+      other.id !== row.id &&
+      ['approved', 'active'].includes(other.status) &&
+      Array.isArray(other.items_dipinjam) &&
+      other.items_dipinjam.some(id => row.items_dipinjam.includes(id)) &&
+      (() => {
+        const oStart = other.tanggal
+        const oEnd   = other.perkiraan_kembali || other.tanggal
+        return reqStart <= oEnd && reqEnd >= oStart
+      })()
+    )
+  }
+
   const handleApprove = async (id, action) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -903,6 +931,7 @@ Tim CC`
             const overdueInfo = getOverdueInfo(row)
             const fine = calcFine(row)
             const blacklisted = isBlacklisted(row)
+            const konflikList = row.status === 'pending' ? getKonflikItems(row) : []
             return (
               <div key={row.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${overdueInfo?.isOver ? 'border-red-200' : overdueInfo?.isToday || overdueInfo?.isNear ? 'border-amber-200' : 'border-slate-100'}`}>
                 <div className="px-5 py-4 flex items-center gap-4 cursor-pointer hover:bg-slate-50/60 transition-colors"
@@ -931,6 +960,11 @@ Tim CC`
                       {blacklisted && (
                         <span className="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full flex items-center gap-1">
                           🚫 Daftar Hitam
+                        </span>
+                      )}
+                      {konflikList.length > 0 && (
+                        <span className="text-xs font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          ⚠️ Konflik Alat
                         </span>
                       )}
                       <p className="font-semibold text-slate-800 text-sm">{row.nama_kegiatan}</p>
@@ -1100,6 +1134,18 @@ Tim CC`
                           <div className="bg-red-50 border border-red-200 rounded-xl p-3">
                             <p className="text-xs font-bold text-red-700">🚫 Peminjam dalam Daftar Hitam</p>
                             <p className="text-xs text-red-500 mt-0.5">Pertimbangkan kembali sebelum menyetujui peminjaman ini.</p>
+                          </div>
+                        )}
+                        {konflikList.length > 0 && (
+                          <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 space-y-1.5">
+                            <p className="text-xs font-bold text-orange-700">⚠️ Konflik Jadwal Alat</p>
+                            <p className="text-xs text-orange-600">Alat yang diminta sudah disetujui untuk peminjaman lain pada tanggal yang sama:</p>
+                            {konflikList.map(k => (
+                              <div key={k.id} className="text-xs bg-white border border-orange-100 rounded-lg px-2.5 py-1.5">
+                                <p className="font-semibold text-slate-700">{k.nama_kegiatan}</p>
+                                <p className="text-slate-400">{k.tanggal}{k.perkiraan_kembali && k.perkiraan_kembali !== k.tanggal ? ` s/d ${k.perkiraan_kembali}` : ''} · {k.nama_peminjam}</p>
+                              </div>
+                            ))}
                           </div>
                         )}
                         {profile?.role === 'admin' && (

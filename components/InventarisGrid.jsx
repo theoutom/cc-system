@@ -126,11 +126,9 @@ function UnitPickerPopup({ group, selectedIds, onToggle, onClose }) {
                   {!isMaintenance && isBusy && info && (
                     <div className="mt-1">
                       <p className="text-xs text-red-400 font-medium">🔒 {info.nama_kegiatan}</p>
-                      {info.perkiraan_kembali && (
-                        <p className="text-xs text-slate-400">
-                          Kembali: {new Date(info.perkiraan_kembali + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </p>
-                      )}
+                      <p className="text-xs text-slate-400">
+                        {info.tanggal} {info.perkiraan_kembali && info.perkiraan_kembali !== info.tanggal ? `s/d ${info.perkiraan_kembali}` : ''}
+                      </p>
                     </div>
                   )}
                   {!isMaintenance && isBusy && !info && (
@@ -265,13 +263,11 @@ export function InventarisGrid({ inventaris, selectedIds, onToggle }) {
                           )}
                           {!isMaintenance && isBusy && info && (
                             <div className="mt-2 space-y-0.5">
-                              <p className="text-xs text-red-500 font-semibold">🔒 Sedang Dipinjam</p>
+                              <p className="text-xs text-red-500 font-semibold">🔒 Konflik Jadwal</p>
                               <p className="text-xs text-slate-400 leading-tight">📌 {info.nama_kegiatan}</p>
-                              {info.perkiraan_kembali && (
-                                <p className="text-xs text-slate-400">
-                                  🔄 Kembali: {new Date(info.perkiraan_kembali + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </p>
-                              )}
+                              <p className="text-xs text-slate-400">
+                                {info.tanggal}{info.perkiraan_kembali && info.perkiraan_kembali !== info.tanggal ? ` s/d ${info.perkiraan_kembali}` : ''}
+                              </p>
                             </div>
                           )}
                         </button>
