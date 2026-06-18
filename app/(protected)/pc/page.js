@@ -9,7 +9,7 @@ export default function PCPage() {
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ nama_pengguna: '', tujuan: '', durasi_jam: 1 })
+  const [form, setForm] = useState({ nama_pengguna: '', tujuan: '', durasi_jam: 1, no_pc: 1 })
   const [submitting, setSubmitting] = useState(false)
   const [now, setNow] = useState(new Date())
   const [actionModal, setActionModal] = useState(null) // { id, type: 'extend' | 'stop' }
@@ -46,11 +46,11 @@ export default function PCPage() {
       return
     }
 
-    // Assign to the lowest available PC number (1-4)
     const usedPCs = activeSessions.map(s => s.no_pc)
-    let availablePc = 1
-    for (let i = 1; i <= 4; i++) {
-      if (!usedPCs.includes(i)) { availablePc = i; break }
+    if (usedPCs.includes(form.no_pc)) {
+      alert(`PC ${form.no_pc} sedang digunakan, silakan pilih PC lain.`)
+      setSubmitting(false)
+      return
     }
 
     const start = new Date()
@@ -63,7 +63,7 @@ export default function PCPage() {
         durasi_jam: form.durasi_jam,
         waktu_mulai: start.toISOString(),
         waktu_selesai: end.toISOString(),
-        no_pc: availablePc,
+        no_pc: form.no_pc,
         status: 'Aktif'
       })
       if (error) throw error
@@ -258,6 +258,15 @@ export default function PCPage() {
             </div>
             
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Pilih Nomor PC</label>
+                <select value={form.no_pc} onChange={e => setForm({...form, no_pc: parseInt(e.target.value)})}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                  {[1, 2, 3, 4].map(num => (
+                    <option key={num} value={num}>PC {num}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Nama Pengguna</label>
                 <input value={form.nama_pengguna} onChange={e => setForm({...form, nama_pengguna: e.target.value})}

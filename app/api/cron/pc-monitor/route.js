@@ -40,7 +40,10 @@ export async function GET(request) {
       for (const o of overdues) {
         await fetch(`${baseUrl}/api/telegram`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-cron-secret': process.env.CRON_SECRET || ''
+          },
           body: JSON.stringify({
             message: `⚠️ *WAKTU HABIS*\n🖥 PC digunakan oleh: ${o.nama_pengguna}\nSegera cek ke studio!`
           })

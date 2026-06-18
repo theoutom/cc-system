@@ -1,7 +1,18 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabaseServer'
 
 export async function POST(request) {
   try {
+    const isCron = request.headers.get('x-cron-secret') === process.env.CRON_SECRET
+    
+    if (!isCron) {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+      }
+    }
+
     const { message } = await request.json()
     const botToken = process.env.TELEGRAM_BOT_TOKEN
     const chatId = process.env.TELEGRAM_CHAT_ID
