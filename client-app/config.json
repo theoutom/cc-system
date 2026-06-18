@@ -1,0 +1,7 @@
+{
+  "supabase_url": "https://svmpggzgvmfawhjpfslj.supabase.co",
+  "supabase_anon_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bXBnZ3pndm1mYXdoanBmc2xqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDMzOTgsImV4cCI6MjA4ODU3OTM5OH0.XMPF-32jdpm4gjCs7yjOtkvM998Lanh-K92pf1lNgEM",
+  "no_pc": 1,
+  "admin_password": "creativecorner",
+  "poll_interval_seconds": 3
+}
