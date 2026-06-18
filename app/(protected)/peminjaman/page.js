@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { InventarisGrid } from '@/components/InventarisGrid'
+import { differenceInDays, parseISO } from 'date-fns'
 import {
   Plus, X, Upload, Package, Phone, CalendarCheck,
   User, CreditCard, School, Search, ChevronDown, CheckCircle,
@@ -738,17 +739,32 @@ export default function PeminjamanPage() {
     return '62' + digits
   }
 
+  const getReminderText = (row) => {
+    const kembali = `${row.perkiraan_kembali}${row.jam_pengembalian ? ' pukul ' + row.jam_pengembalian.slice(0,5) : ''}`
+    const todayStr = new Date().toISOString().split('T')[0]
+    const diff = differenceInDays(parseISO(todayStr), parseISO(row.perkiraan_kembali))
+    
+    let waktuLabel = `pada ${kembali}`
+    if (diff === 0) waktuLabel = `HARI INI (${kembali})`
+    else if (diff === -1) waktuLabel = `BESOK (${kembali})`
+    else if (diff > 0) waktuLabel = `TERLAMBAT ${diff} HARI (seharusnya kembali ${kembali})`
+
+    return `Halo ${row.nama_peminjam},
+
+Pengingat dari tim CC — alat yang kamu pinjam untuk kegiatan *${row.nama_kegiatan}* harus dikembalikan *${waktuLabel}*.
+
+Detail peminjaman:
+- Kegiatan : ${row.nama_kegiatan}
+- Alat     : ${row.detail_barang?.split('\n').filter(l => !l.startsWith('Catatan')).join(', ') || '-'}
+${row.token ? `- Token pengembalian: *${row.token}*` : ''}
+
+Mohon dikembalikan tepat waktu ya untuk menghindari denda. Terima kasih! 🙏`
+  }
+
   const sendWAReminder = (row) => {
     const waPhone = formatWAPhone(row.no_telepon)
     if (!waPhone) return
-    const kembali = `${row.perkiraan_kembali}${row.jam_pengembalian ? ' pukul ' + row.jam_pengembalian.slice(0,5) : ''}`
-    const text = `Halo ${row.nama_peminjam},
-
-Pengingat dari tim CC — alat yang kamu pinjam untuk kegiatan *${row.nama_kegiatan}* harus dikembalikan *besok, ${kembali}*.${row.token ? `
-
-Token pengembalian: *${row.token}*` : ''}
-
-Mohon dikembalikan tepat waktu ya. Terima kasih! 🙏`
+    const text = getReminderText(row)
     window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(text)}`, '_blank')
   }
 
@@ -846,20 +862,7 @@ Salam,
 Tim CC`
     } else if (type === 'reminder') {
       subject = `[CC] Pengingat Pengembalian Alat — ${row.nama_kegiatan}`
-      body = `Halo ${row.nama_peminjam},
-
-Ini adalah pengingat bahwa alat yang dipinjam harus dikembalikan pada:
-${kembali}
-
-Detail peminjaman:
-- Kegiatan : ${row.nama_kegiatan}
-- Alat     : ${row.detail_barang?.split('\n').filter(l => !l.startsWith('Catatan')).join(', ') || '-'}
-${row.token ? `- Token pengembalian: ${row.token}` : ''}
-
-Harap kembalikan tepat waktu untuk menghindari denda.
-
-Salam,
-Tim CC`
+      body = getReminderText(row)
     }
 
     const mailto = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
@@ -869,9 +872,10 @@ Tim CC`
   const getOverdueInfo = (row) => {
     if (!row.perkiraan_kembali) return null
     if (!['approved', 'active'].includes(row.status)) return null
-    const today = new Date(); today.setHours(0,0,0,0)
-    const due = new Date(row.perkiraan_kembali + 'T00:00:00')
-    const diff = Math.floor((today - due) / 86400000)
+    
+    const todayStr = new Date().toISOString().split('T')[0]
+    const diff = differenceInDays(parseISO(todayStr), parseISO(row.perkiraan_kembali))
+    
     if (diff > 0)  return { days: diff, label: `Terlambat ${diff} hari`, isOver: true }
     if (diff === 0) return { days: 0, label: 'Jatuh tempo hari ini', isOver: false, isToday: true }
     if (diff >= -2) return { days: diff, label: `${-diff} hari lagi`, isOver: false, isNear: true }

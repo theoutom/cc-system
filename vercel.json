@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/pc-monitor",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import {
   Camera, LayoutDashboard, Package, RotateCcw, Eye,
-  Calendar, CalendarDays, Box, Users, LogOut, ChevronDown, Menu, X
+  Calendar, CalendarDays, Box, Users, LogOut, ChevronDown, Menu, X, Monitor, CalendarCheck2
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -13,6 +13,8 @@ const navItems = [
   { href: '/peminjaman', label: 'Peminjaman', icon: Package },
   { href: '/pengembalian', label: 'Pengembalian', icon: RotateCcw },
   { href: '/pemantauan', label: 'Pemantauan', icon: Eye },
+  { href: '/pc', label: 'Monitor PC', icon: Monitor },
+  { href: '/studio', label: 'Kalender Studio', icon: CalendarCheck2 },
   { href: '/kalender', label: 'Kalender', icon: CalendarDays },
   { href: '/jadwal', label: 'Jadwal', icon: Calendar },
 ]
