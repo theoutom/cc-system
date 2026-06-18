@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
-import { differenceInSeconds, addHours } from 'date-fns'
+import { differenceInSeconds, addHours, isAfter } from 'date-fns'
 import { Monitor, Clock, PlayCircle, StopCircle, Plus, X, AlertTriangle } from 'lucide-react'
 
 export default function PCPage() {
@@ -39,12 +39,18 @@ export default function PCPage() {
     }
     setSubmitting(true)
     
-    // Check active sessions limit (let's assume max 4 PCs)
-    const activeCount = sessions.filter(s => s.status === 'Aktif' || s.status === 'Overdue').length
-    if (activeCount >= 4) {
+    const activeSessions = sessions.filter(s => s.status === 'Aktif' || s.status === 'Overdue')
+    if (activeSessions.length >= 4) {
       alert('Semua PC sedang digunakan!')
       setSubmitting(false)
       return
+    }
+
+    // Assign to the lowest available PC number (1-4)
+    const usedPCs = activeSessions.map(s => s.no_pc)
+    let availablePc = 1
+    for (let i = 1; i <= 4; i++) {
+      if (!usedPCs.includes(i)) { availablePc = i; break }
     }
 
     const start = new Date()
@@ -57,6 +63,7 @@ export default function PCPage() {
         durasi_jam: form.durasi_jam,
         waktu_mulai: start.toISOString(),
         waktu_selesai: end.toISOString(),
+        no_pc: availablePc,
         status: 'Aktif'
       })
       if (error) throw error
@@ -103,7 +110,8 @@ export default function PCPage() {
     const session = sessions.find(s => s.id === id)
     if (!session) return
 
-    const newEnd = addHours(new Date(session.waktu_selesai), extendHours)
+    const baseTime = isAfter(new Date(), new Date(session.waktu_selesai)) ? new Date() : new Date(session.waktu_selesai)
+    const newEnd = addHours(baseTime, extendHours)
     
     try {
       const { error } = await supabase.from('penggunaan_pc').update({ 
@@ -156,26 +164,20 @@ export default function PCPage() {
       {/* Active Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[1, 2, 3, 4].map(pcNum => {
-          const session = activeSessions[pcNum - 1]
+          const session = activeSessions.find(s => s.no_pc === pcNum)
           
           if (!session) {
             return (
               <div key={pcNum} className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center text-slate-400 h-48">
                 <Monitor className="w-8 h-8 mb-2 opacity-30" />
-                <p className="font-semibold">PC Kosong</p>
+                <p className="font-semibold">PC {pcNum} Kosong</p>
               </div>
             )
           }
 
           const end = new Date(session.waktu_selesai)
           const diffSeconds = differenceInSeconds(end, now)
-          const isOverdue = diffSeconds <= 0
-
-          // Update status overdue locally if it just triggered
-          if (isOverdue && session.status !== 'Overdue') {
-             // In a real app we'd call Supabase here, but we let cron or actions handle DB sync to avoid spamming
-             session.status = 'Overdue'
-          }
+          const isOverdue = diffSeconds <= 0 || session.status === 'Overdue'
 
           return (
             <div key={session.id} className={`bg-white rounded-2xl p-5 border shadow-sm flex flex-col h-48 ${

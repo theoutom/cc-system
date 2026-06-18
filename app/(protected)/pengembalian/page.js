@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
-import { differenceInDays, parseISO } from 'date-fns'
+import { differenceInDays, parseISO, format } from 'date-fns'
 import { RotateCcw, CheckCircle, X, Package, AlertTriangle, Camera } from 'lucide-react'
 
 export default function PengembalianPage() {
@@ -117,9 +117,8 @@ export default function PengembalianPage() {
     fetchData()
   }
 
-  const today = new Date().toISOString().split('T')[0]
-
   const getOverdueInfo = (p) => {
+    const today = format(new Date(), 'yyyy-MM-dd')
     if (!p.perkiraan_kembali) return null
     const diff = differenceInDays(parseISO(today), parseISO(p.perkiraan_kembali))
     if (diff > 0) return { days: diff, label: `Terlambat ${diff} hari`, isOver: true }

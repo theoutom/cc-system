@@ -3,12 +3,12 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { Calendar as BigCalendar, dateFnsLocalizer } from 'react-big-calendar'
 import { format, parse, startOfWeek, getDay, addHours, parseISO, isAfter } from 'date-fns'
-import idID from 'date-fns/locale/id'
+import { id } from 'date-fns/locale/id'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { Plus, X, Trash2, CalendarCheck2 } from 'lucide-react'
 
 const locales = {
-  'id': idID,
+  'id': id,
 }
 
 const localizer = dateFnsLocalizer({
@@ -246,7 +246,7 @@ export default function StudioPage() {
               </div>
               <div className="flex gap-2">
                 <span className="text-slate-400 w-20">Tanggal</span>
-                <span className="font-medium">{format(selectedEvent.start, 'EEEE, d MMMM yyyy', { locale: idID })}</span>
+                <span className="font-medium">{format(selectedEvent.start, 'EEEE, d MMMM yyyy', { locale: id })}</span>
               </div>
               <div className="flex gap-2">
                 <span className="text-slate-400 w-20">Waktu</span>

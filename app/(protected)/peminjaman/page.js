@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { InventarisGrid } from '@/components/InventarisGrid'
-import { differenceInDays, parseISO } from 'date-fns'
+import { differenceInDays, parseISO, format, addDays as addDaysFns } from 'date-fns'
 import {
   Plus, X, Upload, Package, Phone, CalendarCheck,
   User, CreditCard, School, Search, ChevronDown, CheckCircle,
@@ -166,7 +166,7 @@ function PeminjamanForm({ onClose, onSuccess }) {
       setRawInventaris(items || [])
       setActivePem(peminjamanAktif || [])
 
-      const today = new Date().toISOString().split('T')[0]
+      const today = format(new Date(), 'yyyy-MM-dd')
       const { data: jadwal } = await supabase
         .from('jadwal_dokumentasi')
         .select('id, nama_kegiatan, tanggal, waktu_kegiatan')
@@ -721,10 +721,7 @@ export default function PeminjamanPage() {
 
   const isBlacklisted = (row) => daftarHitam.includes((row.nama_peminjam || '').toLowerCase())
 
-  const tomorrow = (() => {
-    const d = new Date(); d.setDate(d.getDate() + 1)
-    return d.toISOString().split('T')[0]
-  })()
+  const tomorrow = format(addDaysFns(new Date(), 1), 'yyyy-MM-dd')
 
   const h1List = data.filter(d =>
     ['approved', 'active'].includes(d.status) &&
@@ -741,7 +738,7 @@ export default function PeminjamanPage() {
 
   const getReminderText = (row) => {
     const kembali = `${row.perkiraan_kembali}${row.jam_pengembalian ? ' pukul ' + row.jam_pengembalian.slice(0,5) : ''}`
-    const todayStr = new Date().toISOString().split('T')[0]
+    const todayStr = format(new Date(), 'yyyy-MM-dd')
     const diff = differenceInDays(parseISO(todayStr), parseISO(row.perkiraan_kembali))
     
     let waktuLabel = `pada ${kembali}`
@@ -873,7 +870,7 @@ Tim CC`
     if (!row.perkiraan_kembali) return null
     if (!['approved', 'active'].includes(row.status)) return null
     
-    const todayStr = new Date().toISOString().split('T')[0]
+    const todayStr = format(new Date(), 'yyyy-MM-dd')
     const diff = differenceInDays(parseISO(todayStr), parseISO(row.perkiraan_kembali))
     
     if (diff > 0)  return { days: diff, label: `Terlambat ${diff} hari`, isOver: true }
